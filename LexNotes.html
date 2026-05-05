@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexNotes — Law School Notes Marketplace</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0b1d3a; --navy2: #142d58; --gold: #c9a84c; --gold2: #e0bf72;
+      --cream: #f8f5ef; --ink: #1a1a2e; --muted: #6b7280; --border: #e5ddd0;
+      --success: #1a6b3c; --danger: #b91c1c; --info: #1b4f8a;
+      --shadow: 0 4px 24px rgba(11,29,58,0.10); --shadow-lg: 0 12px 40px rgba(11,29,58,0.18);
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    input, select, textarea { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--cream); }
+    ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+
+    /* NAVBAR */
+    .navbar { background: var(--navy); position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 20px rgba(0,0,0,0.3); border-bottom: 1px solid rgba(201,168,76,0.2); }
+    .nav-inner { max-width: 1280px; margin: 0 auto; padding: 0 2rem; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .logo { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; color: white; font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 900; }
+    .logo em { font-style: italic; color: var(--gold2); }
+    .logo-icon { color: var(--gold); font-size: 1.6rem; }
+    .nav-links { display: flex; align-items: center; gap: 0.25rem; }
+    .nav-btn { color: rgba(255,255,255,0.75); padding: 0.45rem 1rem; border-radius: 6px; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+    .nav-btn:hover { color: white; background: rgba(255,255,255,0.08); }
+    .nav-btn.active { color: var(--gold2); background: rgba(201,168,76,0.15); }
+    .nav-right { display: flex; align-items: center; gap: 0.75rem; }
+    .cart-btn { position: relative; background: rgba(255,255,255,0.08); color: white; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.95rem; transition: 0.2s; }
+    .cart-btn:hover { background: rgba(255,255,255,0.15); }
+    .cart-badge { position: absolute; top: -5px; right: -5px; background: var(--gold); color: var(--navy); border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 800; }
+    .btn-ghost { color: rgba(255,255,255,0.8); border: 1.5px solid rgba(255,255,255,0.25); padding: 0.42rem 1.1rem; border-radius: 7px; font-size: 0.88rem; font-weight: 500; transition: 0.2s; }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.6); color: white; }
+    .btn-gold { background: var(--gold); color: var(--navy); padding: 0.45rem 1.2rem; border-radius: 7px; font-size: 0.88rem; font-weight: 700; transition: 0.2s; }
+    .btn-gold:hover { background: var(--gold2); }
+    .user-chip { display: flex; align-items: center; gap: 0.6rem; background: rgba(255,255,255,0.08); padding: 0.35rem 0.9rem; border-radius: 20px; color: white; font-size: 0.85rem; }
+    .btn-logout { color: var(--gold); font-size: 0.78rem; text-decoration: underline; }
+    .hamburger { display: none; color: white; font-size: 1.5rem; padding: 0.2rem 0.5rem; }
+
+    /* HERO */
+    .hero { background: linear-gradient(135deg, #0b1d3a 0%, #142d58 55%, #1e4080 100%); color: white; padding: 5rem 2rem 4rem; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 50% at 70% 50%, rgba(201,168,76,0.06) 0%, transparent 70%), repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 50px); pointer-events: none; }
+    .hero-inner { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; position: relative; }
+    .hero-eyebrow { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.35); color: var(--gold2); padding: 0.3rem 0.9rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .hero-h1 { font-family: 'Playfair Display', serif; font-size: 3.4rem; font-weight: 900; line-height: 1.12; letter-spacing: -0.02em; margin-bottom: 1.25rem; }
+    .hero-h1 em { font-style: italic; color: var(--gold); display: block; }
+    .hero-sub { font-size: 1.05rem; line-height: 1.7; color: rgba(255,255,255,0.72); margin-bottom: 2rem; max-width: 500px; }
+    .hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; }
+    .btn-hero-primary { background: var(--gold); color: var(--navy); padding: 0.85rem 2rem; border-radius: 9px; font-weight: 700; font-size: 1rem; transition: 0.2s; cursor: pointer; border: none; box-shadow: 0 4px 20px rgba(201,168,76,0.35); }
+    .btn-hero-primary:hover { background: var(--gold2); transform: translateY(-2px); }
+    .btn-hero-ghost { background: transparent; color: white; border: 2px solid rgba(255,255,255,0.35); padding: 0.85rem 2rem; border-radius: 9px; font-weight: 600; font-size: 1rem; transition: 0.2s; cursor: pointer; }
+    .btn-hero-ghost:hover { border-color: white; background: rgba(255,255,255,0.07); }
+    .hero-stats { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .hstat strong { display: block; font-size: 1.6rem; font-weight: 800; color: var(--gold); line-height: 1; }
+    .hstat span { font-size: 0.75rem; color: rgba(255,255,255,0.55); margin-top: 0.1rem; display: block; }
+    .hstat-div { width: 1px; height: 36px; background: rgba(255,255,255,0.15); }
+    .hero-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 2rem; }
+    .hero-book { font-size: 9rem; animation: floatY 3.5s ease-in-out infinite; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.4)); }
+    @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+    .fcard { position: absolute; background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 0.65rem 1rem; font-size: 0.8rem; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); white-space: nowrap; }
+    .fcard strong { display: block; margin-bottom: 0.1rem; }
+    .fcard small { color: var(--gold2); }
+    .fcard1 { top: 8%; left: 0; animation: floatY 4s ease-in-out infinite 0.3s; }
+    .fcard2 { top: 45%; right: -2%; animation: floatY 3.2s ease-in-out infinite 0.8s; }
+    .fcard3 { bottom: 12%; left: 5%; animation: floatY 3.8s ease-in-out infinite 0.5s; }
+
+    /* SECTIONS */
+    .section { max-width: 1280px; margin: 0 auto; padding: 4.5rem 2rem; }
+    .section-dark { background: var(--navy); }
+    .sec-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2.5rem; }
+    .sec-title { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 900; color: var(--navy); letter-spacing: -0.02em; }
+    .sec-title.light { color: white; }
+    .sec-title.center { text-align: center; width: 100%; }
+    .sec-link { color: var(--info); font-size: 0.9rem; font-weight: 600; text-decoration: underline; cursor: pointer; }
+    .sec-link.light { color: var(--gold2); }
+
+    /* SUBJECT CARDS */
+    .subjects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; }
+    .scard { background: white; border-radius: 14px; padding: 1.75rem 1.5rem; cursor: pointer; transition: all 0.25s; border-left: 4px solid var(--ac); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; overflow: hidden; }
+    .scard::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--ac); transform: scaleX(0); transform-origin: left; transition: transform 0.3s; }
+    .scard:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(0,0,0,0.12); }
+    .scard:hover::after { transform: scaleX(1); }
+    .scard-icon { font-size: 2.4rem; margin-bottom: 0.85rem; }
+    .scard-name { font-weight: 700; font-size: 0.98rem; color: var(--navy); margin-bottom: 0.35rem; }
+    .scard-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.45; margin-bottom: 0.75rem; }
+    .scard-count { font-size: 0.75rem; font-weight: 700; background: var(--cream); color: var(--navy2); padding: 0.2rem 0.65rem; border-radius: 20px; display: inline-block; }
+
+    /* NOTE CARDS */
+    .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; max-width: 1280px; margin: 0 auto; }
+    .ncard { background: white; border-radius: 14px; padding: 1.5rem; position: relative; box-shadow: 0 2px 12px rgba(0,0,0,0.07); transition: all 0.25s; border-top: 3px solid transparent; }
+    .ncard:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.13); border-top-color: var(--gold); }
+    .nsubj { color: var(--info); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+    .ntitle { font-size: 0.96rem; font-weight: 700; color: var(--navy); line-height: 1.4; margin-bottom: 0.6rem; }
+    .nmeta { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.6rem; }
+    .ndetails { display: flex; gap: 1rem; font-size: 0.8rem; color: #475569; margin-bottom: 1.1rem; flex-wrap: wrap; }
+    .nfooter { display: flex; justify-content: space-between; align-items: center; }
+    .nprice { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 900; color: var(--navy); }
+    .btn-cart { background: var(--navy); color: white; padding: 0.48rem 1.1rem; border-radius: 8px; font-size: 0.84rem; font-weight: 600; transition: 0.2s; }
+    .btn-cart:hover { background: var(--navy2); }
+
+    /* SKELETON */
+    .skeleton-card { background: white; border-radius: 14px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+    .skel { border-radius: 6px; margin-bottom: 0.75rem; background: linear-gradient(90deg, #f0ece4 25%, #e4ddd0 50%, #f0ece4 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* HOW IT WORKS */
+    .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
+    .step-card { background: white; border-radius: 14px; padding: 2rem 1.75rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .step-n { font-family: 'Playfair Display', serif; font-size: 3.5rem; font-weight: 900; color: var(--border); line-height: 1; margin-bottom: 0.75rem; }
+    .step-t { font-weight: 700; font-size: 1rem; color: var(--navy); margin-bottom: 0.5rem; }
+    .step-d { font-size: 0.84rem; color: var(--muted); line-height: 1.55; }
+
+    /* CTA */
+    .cta-strip { background: linear-gradient(135deg, var(--gold) 0%, #a07830 100%); text-align: center; padding: 4rem 2rem; }
+    .cta-strip h2 { font-family: 'Playfair Display', serif; font-size: 2.1rem; font-weight: 900; color: var(--navy); margin-bottom: 0.75rem; }
+    .cta-strip p { color: rgba(11,29,58,0.7); margin-bottom: 1.75rem; font-size: 1rem; }
+
+    /* PAGES */
+    .page-wrap { max-width: 1280px; margin: 0 auto; padding: 3rem 2rem; }
+    .page-hero { background: linear-gradient(135deg, var(--navy), var(--navy2)); color: white; padding: 3rem 2rem; margin-bottom: 2.5rem; }
+    .page-hero-inner { max-width: 1280px; margin: 0 auto; }
+    .page-h1 { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 900; margin-bottom: 0.4rem; }
+    .page-sub-text { color: rgba(255,255,255,0.65); font-size: 0.95rem; }
+    .controls { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .search-box { flex: 1; min-width: 200px; padding: 0.7rem 1.1rem; border: 2px solid var(--border); border-radius: 9px; font-size: 0.92rem; background: white; transition: 0.2s; outline: none; }
+    .search-box:focus { border-color: var(--navy2); }
+    .sel { padding: 0.7rem 1rem; border: 2px solid var(--border); border-radius: 9px; font-size: 0.88rem; background: white; cursor: pointer; outline: none; }
+    .pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
+    .pill { background: white; border: 1.5px solid var(--border); padding: 0.32rem 0.85rem; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+    .pill:hover { border-color: var(--navy); color: var(--navy); }
+    .pill.on { background: var(--navy); color: white; border-color: var(--navy); }
+    .empty { text-align: center; padding: 4rem; color: var(--muted); font-size: 1rem; }
+
+    /* SUBJECT PAGE */
+    .back-btn { color: var(--info); font-size: 0.88rem; font-weight: 600; text-decoration: underline; margin-bottom: 1.5rem; cursor: pointer; display: inline-block; }
+    .subj-header { display: flex; align-items: center; gap: 1.5rem; background: white; border-radius: 14px; padding: 1.75rem 2rem; border-left: 6px solid var(--ac); box-shadow: var(--shadow); margin-bottom: 2.5rem; }
+    .subj-icon { font-size: 3rem; }
+
+    /* SELL PAGE */
+    .sell-grid { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: start; }
+    .form-card { background: white; border-radius: 16px; padding: 2.25rem; box-shadow: var(--shadow); }
+    .form-sec-title { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 900; color: var(--navy); margin-bottom: 1.75rem; }
+    .flabel { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 0.35rem; margin-top: 1.1rem; }
+    .req { color: var(--danger); }
+    .finput { width: 100%; padding: 0.68rem 0.95rem; border: 2px solid var(--border); border-radius: 9px; font-size: 0.9rem; background: #fafaf8; transition: 0.2s; outline: none; }
+    .finput:focus { border-color: var(--navy2); background: white; }
+    .ftextarea { min-height: 100px; resize: vertical; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .upload-zone { border: 2px dashed #d1d5db; border-radius: 11px; padding: 2.25rem; text-align: center; color: var(--muted); font-size: 0.88rem; margin: 1rem 0; cursor: pointer; transition: 0.2s; }
+    .upload-zone:hover { border-color: var(--navy); color: var(--navy); }
+    .btn-full { width: 100%; padding: 0.9rem; background: var(--gold); color: var(--navy); font-weight: 700; font-size: 1rem; border-radius: 9px; border: none; cursor: pointer; transition: 0.2s; margin-top: 0.5rem; }
+    .btn-full:hover { background: var(--gold2); }
+    .btn-full:disabled { opacity: 0.6; cursor: not-allowed; }
+    .sidebar-card { background: white; border-radius: 14px; padding: 1.6rem; box-shadow: var(--shadow); margin-bottom: 1rem; }
+    .sidebar-h { font-weight: 700; font-size: 1rem; color: var(--navy); margin-bottom: 1.1rem; }
+    .earn-row { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .earn-row:last-child { border: none; }
+    .earn-row.hl { color: var(--success); font-weight: 700; }
+    .guide-ul { list-style: none; font-size: 0.84rem; color: #475569; display: flex; flex-direction: column; gap: 0.55rem; }
+    .guide-ul li::before { content: "✓ "; color: var(--success); font-weight: bold; }
+
+    /* AUTH */
+    .auth-page { min-height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center; padding: 2rem; background: radial-gradient(ellipse at 30% 50%, rgba(201,168,76,0.07) 0%, transparent 60%), var(--cream); }
+    .auth-card { background: white; border-radius: 18px; padding: 2.75rem; width: 100%; max-width: 440px; box-shadow: 0 12px 50px rgba(11,29,58,0.14); border-top: 4px solid var(--gold); }
+    .auth-logo { text-align: center; font-family: 'Playfair Display', serif; font-size: 1.9rem; font-weight: 900; color: var(--navy); margin-bottom: 1.5rem; }
+    .auth-logo span { color: var(--gold); }
+    .auth-h { font-family: 'Playfair Display', serif; font-size: 1.65rem; font-weight: 900; color: var(--navy); margin-bottom: 0.3rem; }
+    .auth-sub { font-size: 0.88rem; color: var(--muted); margin-bottom: 1.75rem; }
+    .auth-switch { text-align: center; margin-top: 1.25rem; font-size: 0.86rem; color: var(--muted); }
+    .link-btn { color: var(--info); font-weight: 600; text-decoration: underline; cursor: pointer; }
+    .locked-box { text-align: center; background: white; border-radius: 16px; padding: 3rem 2rem; max-width: 440px; margin: 0 auto; box-shadow: var(--shadow); }
+    .locked-box h2 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 900; color: var(--navy); margin: 1rem 0 0.5rem; }
+    .locked-box p { color: var(--muted); margin-bottom: 1.75rem; font-size: 0.92rem; }
+    .center-page { display: flex; align-items: center; justify-content: center; min-height: 55vh; }
+
+    /* ERROR BANNER */
+    .error-banner { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; font-size: 0.88rem; line-height: 1.5; }
+
+    /* CART */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 390px; max-width: 100%; background: white; z-index: 301; box-shadow: -6px 0 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+    .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); }
+    .drawer-head h3 { font-weight: 700; font-size: 1.05rem; color: var(--navy); }
+    .close-x { width: 32px; height: 32px; border-radius: 50%; font-size: 1rem; color: var(--muted); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+    .close-x:hover { background: var(--cream); color: var(--ink); }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+    .cart-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); font-size: 0.84rem; color: #374151; }
+    .cart-item strong { display: block; margin-bottom: 0.2rem; color: var(--navy); font-size: 0.85rem; }
+    .cart-item small { color: var(--muted); }
+    .remove-x { color: #cbd5e1; font-size: 0.9rem; transition: 0.2s; flex-shrink: 0; }
+    .remove-x:hover { color: var(--danger); }
+    .drawer-foot { padding: 1.5rem; border-top: 1px solid var(--border); }
+    .cart-total { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .cart-total span { font-size: 0.9rem; color: var(--muted); }
+    .cart-total strong { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--navy); }
+    .cart-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; color: var(--muted); font-size: 0.9rem; text-align: center; padding: 2rem; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); color: white; padding: 0.8rem 1.6rem; border-radius: 10px; font-size: 0.88rem; font-weight: 600; z-index: 500; box-shadow: 0 6px 25px rgba(0,0,0,0.25); white-space: nowrap; pointer-events: none; animation: fadeUp 0.3s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+    /* FOOTER */
+    .footer { background: var(--navy); color: white; padding: 2.5rem 2rem 1.25rem; }
+    .footer-inner { max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 2rem; padding-bottom: 1.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .footer-brand { display: flex; flex-direction: column; gap: 0.3rem; }
+    .footer-logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 900; color: white; }
+    .footer-logo span { color: var(--gold); }
+    .footer-tagline { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
+    .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .flink { color: rgba(255,255,255,0.6); font-size: 0.88rem; text-decoration: underline; cursor: pointer; transition: 0.2s; }
+    .flink:hover { color: var(--gold2); }
+    .footer-copy { max-width: 1280px; margin: 1.1rem auto 0; text-align: center; color: rgba(255,255,255,0.3); font-size: 0.78rem; }
+
+    /* COMMUNITY */
+    .comm-layout { display: grid; grid-template-columns: 260px 1fr; gap: 2rem; align-items: start; }
+    .comm-sidebar { background: white; border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; position: sticky; top: 80px; }
+    .comm-sidebar-title { padding: 1.25rem 1.5rem; font-weight: 700; font-size: 0.9rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+    .comm-thread-btn { width: 100%; text-align: left; padding: 1rem 1.5rem; font-size: 0.9rem; color: var(--navy); border-bottom: 1px solid var(--border); transition: 0.15s; display: flex; align-items: center; gap: 0.6rem; font-weight: 500; }
+    .comm-thread-btn:hover { background: var(--cream); }
+    .comm-thread-btn.active { background: var(--navy); color: white; font-weight: 700; }
+    .comm-main { display: flex; flex-direction: column; gap: 1.25rem; }
+    .comm-post { background: white; border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow); }
+    .comm-post-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .comm-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--cream); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; overflow: hidden; flex-shrink: 0; }
+    .comm-author { font-weight: 700; font-size: 0.88rem; color: var(--navy); }
+    .comm-time { font-size: 0.75rem; color: var(--muted); }
+    .comm-tag { font-size: 0.72rem; background: var(--cream); color: var(--navy2); padding: 0.15rem 0.55rem; border-radius: 20px; font-weight: 600; margin-left: auto; }
+    .comm-body { font-size: 0.92rem; line-height: 1.65; color: #374151; margin-bottom: 1rem; }
+    .comm-actions { display: flex; gap: 1rem; align-items: center; }
+    .comm-action-btn { font-size: 0.82rem; color: var(--muted); display: flex; align-items: center; gap: 0.3rem; transition: 0.2s; }
+    .comm-action-btn:hover { color: var(--navy); }
+    .comm-action-btn.liked { color: var(--danger); }
+    .comm-replies { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.75rem; }
+    .comm-reply { display: flex; gap: 0.75rem; }
+    .comm-reply-body { flex: 1; background: var(--cream); border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.86rem; color: #374151; line-height: 1.5; }
+    .comm-reply-author { font-weight: 700; color: var(--navy); font-size: 0.82rem; margin-bottom: 0.2rem; }
+    .comm-compose { background: white; border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow); }
+    .comm-compose textarea { width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 9px; font-size: 0.9rem; resize: vertical; min-height: 80px; outline: none; font-family: inherit; background: #fafaf8; }
+    .comm-compose textarea:focus { border-color: var(--navy2); background: white; }
+    .comm-compose-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; gap: 0.5rem; }
+    .btn-post { background: var(--navy); color: white; padding: 0.5rem 1.4rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600; transition: 0.2s; }
+    .btn-post:hover { background: var(--navy2); }
+    .btn-post:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .hero-visual { display: none; }
+      .sell-grid { grid-template-columns: 1fr; }
+      .comm-layout { grid-template-columns: 1fr; }
+      .comm-sidebar { position: static; }
+    }
+    @media (max-width: 640px) {
+      .nav-links { display: none; position: fixed; top: 64px; left: 0; right: 0; background: var(--navy); flex-direction: column; padding: 1rem; z-index: 150; gap: 0.25rem; }
+      .nav-links.open { display: flex; }
+      .hamburger { display: block; }
+      .hero-h1 { font-size: 2.3rem; }
+      .drawer { width: 100%; }
+      .controls { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+
+    // ─── SUPABASE CLIENT ────────────────────────────────────────────────
+    // FIX: closing parenthesis was missing, storageKey typo fixed
+    const supabase = window.supabase.createClient(
+      "https://kvzdfpttomgnjjstifjc.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt2emRmcHR0b21nbmpqc3RpZmpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3MjQzNzUsImV4cCI6MjA5MzMwMDM3NX0.j9ofsfFyTutqNJKjpLtTrB9BxO1o58PA17m7iVOPUD4",
+      {
+        auth: {
+          persistSession: true,
+          storageKey: "lexnotes-auth",
+          storage: window.localStorage,
+          autoRefreshToken: true,
+          detectSessionInUrl: false,
+          flowType: "implicit"
+        }
+      }
+    );
+
+    const { useState, useEffect, useRef } = React;
+
+    // ─── SUBJECTS ───────────────────────────────────────────────────────
+    const SUBJECTS = [
+      { id:"con",  icon:"📜", name:"Constitutional Law",       desc:"Rights, Federalism & Judicial Review", ac:"#c8102e" },
+      { id:"con2", icon:"🤝", name:"Contract",                 desc:"Offer, Acceptance, Breach & Remedies", ac:"#1a6b3c" },
+      { id:"crim", icon:"⚖️", name:"Criminal Law",             desc:"Offences, Defences & Procedure", ac:"#7b2d8b" },
+      { id:"tort", icon:"🛡️", name:"Torts",                    desc:"Negligence, Nuisance & Civil Wrongs", ac:"#c47a00" },
+      { id:"prop", icon:"🏛️", name:"Property Law",             desc:"Ownership, Easements & Transfers", ac:"#1b4f8a" },
+      { id:"adm",  icon:"📋", name:"Administrative Law",       desc:"Tribunals, Writs & Judicial Review", ac:"#8a1b1b" },
+      { id:"ipc",  icon:"🔒", name:"IPC & CrPC",               desc:"Indian Penal Code & Criminal Procedure", ac:"#1b6e8a" },
+      { id:"wpt",  icon:"🌐", name:"Western Political Thought",desc:"Plato to Rawls — Theory & Analysis", ac:"#5a6b1b" },
+      { id:"hist", icon:"📖", name:"History",                  desc:"British and Medieval India", ac:"#c8102e" },
+      { id:"eco", icon:"📈", name:"Microeconomics", desc:"Markets, Cost, and Production Theory", ac:"#2d6a4f" },
+    ];
+
+    const COMM_THREADS = [
+      { id:"general", label:"💬 General Discussion", icon:"💬" },
+      { id:"con",  label:"📜 Constitutional Law",  icon:"📜" },
+      { id:"con2", label:"🤝 Contract Law",         icon:"🤝" },
+      { id:"crim", label:"⚖️ Criminal Law",         icon:"⚖️" },
+      { id:"tort", label:"🛡️ Torts",               icon:"🛡️" },
+      { id:"ipc",  label:"🔒 IPC & CrPC",           icon:"🔒" },
+      { id:"wpt",  label:"🌐 Western Political",    icon:"🌐" },
+      { id:"notes-quality", label:"⭐ Notes Quality",  icon:"⭐" },
+      { id:"platform", label:"🛠 Platform Feedback", icon:"🛠" },
+    ];
+
+    // ─── HELPERS ────────────────────────────────────────────────────────
+    function subjectMatch(dbSubject, subjEntry) {
+      if (!dbSubject) return false;
+      const a = dbSubject.toLowerCase();
+      const b = subjEntry.name.toLowerCase();
+      return a.includes(b) || b.includes(a);
+    }
+
+    function timeAgo(ts) {
+      const diff = Date.now() - new Date(ts).getTime();
+      const m = Math.floor(diff/60000);
+      if (m < 1) return "just now";
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m/60);
+      if (h < 24) return `${h}h ago`;
+      return `${Math.floor(h/24)}d ago`;
+    }
+
+    function SkeletonCard() {
+      return (
+        <div className="skeleton-card">
+          <div className="skel" style={{height:"11px",width:"35%",marginBottom:"0.5rem"}}/>
+          <div className="skel" style={{height:"18px",width:"80%",marginBottom:"1rem"}}/>
+          <div className="skel" style={{height:"11px",width:"60%"}}/>
+          <div className="skel" style={{height:"11px",width:"50%"}}/>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:"1.25rem"}}>
+            <div className="skel" style={{height:"22px",width:"28%",marginBottom:0}}/>
+            <div className="skel" style={{height:"32px",width:"26%",marginBottom:0,borderRadius:"8px"}}/>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── NOTE CARD ──────────────────────────────────────────────────────
+    function NoteCard({ note, addToCart, purchases = [] }) {
+      const purchased = purchases.find(p => p.note_id === note.id);
+      return (
+        <div className="ncard">
+          <div className="nsubj">{note.subject || "General"}</div>
+          <h3 className="ntitle">{note.title}</h3>
+          <div className="nmeta">
+            {note.profiles?.full_name && <span>👤 {note.profiles.full_name}</span>}
+            {note.profiles?.college   && <span>🏛 {note.profiles.college}</span>}
+          </div>
+          <div className="ndetails">
+            {note.pages && <span>📄 {note.pages} pages</span>}
+            {note.file_url && (
+              purchased
+                ? <a href={note.file_url} target="_blank" rel="noreferrer" style={{color:"var(--success)",fontWeight:600,fontSize:"0.8rem",textDecoration:"underline"}}>📄 View File</a>
+                : <span style={{color:"var(--muted)",fontSize:"0.8rem"}}>🔒 Purchase to unlock</span>
+            )}
+          </div>
+          <div className="nfooter">
+            <span className="nprice">₹{note.price}</span>
+            <button className="btn-cart" onClick={() => addToCart(note)}>+ Cart</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── TOAST ──────────────────────────────────────────────────────────
+    function Toast({ msg, type }) {
+      const bg = { success:"#1a6b3c", error:"#b91c1c", info:"#1b4f8a" };
+      return <div className="toast" style={{background:bg[type]||bg.success}}>{msg}</div>;
+    }
+
+    // ─── NAVBAR ─────────────────────────────────────────────────────────
+    function Navbar({ page, go, cart, cartOpen, setCartOpen, user, logout }) {
+      const [mob, setMob] = useState(false);
+      return (
+        <nav className="navbar">
+          <div className="nav-inner">
+            <div className="logo" onClick={() => { go("home"); setMob(false); }}>
+              <span className="logo-icon">⚖</span>Lex<em>Notes</em>
+            </div>
+            <div className={`nav-links ${mob?"open":""}`}>
+              <button className={`nav-btn ${page==="browse"?"active":""}`}    onClick={() => { go("browse");    setMob(false); }}>Browse</button>
+              <button className={`nav-btn ${page==="sell"?"active":""}`}      onClick={() => { go("sell");      setMob(false); }}>Sell Notes</button>
+              <button className={`nav-btn ${page==="sellers"?"active":""}`}   onClick={() => { go("sellers");   setMob(false); }}>Sellers</button>
+              <button className={`nav-btn ${page==="community"?"active":""}`} onClick={() => { go("community"); setMob(false); }}>Community</button>
+            </div>
+            <div className="nav-right">
+              <button className="cart-btn" onClick={() => setCartOpen(v => !v)}>
+                🛒 Cart {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
+              </button>
+              {user ? (
+                <div className="user-chip">
+                  <button onClick={() => go("profile")} style={{color:"white"}}>👤 {user.split("@")[0]}</button>
+                  <button onClick={() => go("library")} style={{color:"var(--gold2)",fontSize:"0.78rem",textDecoration:"underline"}}>My Library</button>
+                  <button className="btn-logout" onClick={logout}>Logout</button>
+                </div>
+              ) : (
+                <div style={{display:"flex",gap:"0.5rem"}}>
+                  <button className="btn-ghost" onClick={() => go("login")}>Login</button>
+                  <button className="btn-gold"  onClick={() => go("register")}>Sign Up</button>
+                </div>
+              )}
+              <button className="hamburger" onClick={() => setMob(v => !v)}>☰</button>
+            </div>
+          </div>
+        </nav>
+      );
+    }
+
+    // ─── HOME ────────────────────────────────────────────────────────────
+    function Home({ go, addToCart, notes, notesLoading, notesError, purchases }) {
+      return (
+        <>
+          <section className="hero">
+            <div className="hero-inner">
+              <div>
+                <div className="hero-eyebrow">🎓 Trusted by 12,000+ Law Students</div>
+                <h1 className="hero-h1">Notes that get you<em>through finals.</em></h1>
+                <p className="hero-sub">Curated study material from top-ranked law colleges across India. Buy, sell, and ace your exams.</p>
+                <div className="hero-ctas">
+                  <button className="btn-hero-primary" onClick={() => go("browse")}>Browse All Notes →</button>
+                  <button className="btn-hero-ghost"   onClick={() => go("sell")}>Start Selling</button>
+                </div>
+                <div className="hero-stats">
+                  <div className="hstat"><strong>4,800+</strong><span>Note Sets</span></div>
+                  <div className="hstat-div"/>
+                  <div className="hstat"><strong>320+</strong><span>Sellers</span></div>
+                  <div className="hstat-div"/>
+                  <div className="hstat"><strong>12k+</strong><span>Students</span></div>
+                  <div className="hstat-div"/>
+                  <div className="hstat"><strong>4.8★</strong><span>Avg Rating</span></div>
+                </div>
+              </div>
+              <div className="hero-visual">
+                <div className="hero-book">📚</div>
+                <div className="fcard fcard1"><strong>⚖️ Constitutional Law</strong><small>84 pages · ₹299</small></div>
+                <div className="fcard fcard2"><strong>📜 IPC &amp; CrPC</strong><small>91 pages · ₹249</small></div>
+                <div className="fcard fcard3"><strong>🌐 Western Political Thought</strong><small>38 pages · ₹149</small></div>
+              </div>
+            </div>
+          </section>
+
+          <div className="section">
+            <div className="sec-head">
+              <h2 className="sec-title">Browse by Subject</h2>
+              <button className="sec-link" onClick={() => go("browse")}>See all →</button>
+            </div>
+            <div className="subjects-grid">
+              {SUBJECTS.map(s => (
+                <div key={s.id} className="scard" style={{"--ac":s.ac}} onClick={() => go("subject",{subject:s})}>
+                  <div className="scard-icon">{s.icon}</div>
+                  <div className="scard-name">{s.name}</div>
+                  <div className="scard-desc">{s.desc}</div>
+<span className="scard-count">{notes.filter(n => subjectMatch(n.subject, s)).length} notes</span>                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="section-dark">
+            <div className="section">
+              <div className="sec-head">
+                <h2 className="sec-title light">Featured Notes</h2>
+                <button className="sec-link light" onClick={() => go("browse")}>View all →</button>
+              </div>
+              {notesError && <div className="error-banner">⚠️ Could not load notes: {notesError}<br/>Fix: Supabase → Table Editor → notes → Policies → Add SELECT policy for all users.</div>}
+              {notesLoading
+                ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
+                : notes.length === 0 && !notesError
+                  ? <div className="empty" style={{color:"rgba(255,255,255,0.45)"}}>No notes yet — add rows from the Supabase Table Editor!</div>
+                  : <div className="notes-grid">{notes.slice(0,6).map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+              }
+            </div>
+          </div>
+
+          <div className="section">
+            <h2 className="sec-title center" style={{marginBottom:"2.5rem"}}>How LexNotes Works</h2>
+            <div className="steps">
+              {[
+                {n:"01",t:"Browse & Filter",   d:"Search 30+ subjects. Filter by college, semester, rating, or price."},
+                {n:"02",t:"Preview & Buy",      d:"Read sample pages, check ratings, pay securely via UPI or card."},
+                {n:"03",t:"Download Instantly", d:"Get your PDF immediately after payment. Print or read anywhere."},
+                {n:"04",t:"Sell & Earn",        d:"Upload notes, set your price, earn 80% of every sale — paid weekly."},
+              ].map(s => (
+                <div key={s.n} className="step-card">
+                  <div className="step-n">{s.n}</div>
+                  <div className="step-t">{s.t}</div>
+                  <div className="step-d">{s.d}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="cta-strip">
+            <h2>Ready to sell your notes?</h2>
+            <p>Join 320+ student sellers already earning on LexNotes.</p>
+            <button className="btn-hero-primary" onClick={() => go("sell")}>Upload Your First Set →</button>
+          </div>
+        </>
+      );
+    }
+
+    // ─── BROWSE ──────────────────────────────────────────────────────────
+    function Browse({ go, addToCart, notes, notesLoading, notesError, purchases }) {
+      const [q,    setQ]    = useState("");
+      const [subj, setSubj] = useState("all");
+      const [sort, setSort] = useState("default");
+
+      const shown = notes
+        .filter(n => {
+          if (subj === "all") return true;
+          const entry = SUBJECTS.find(s => s.id === subj);
+          return entry ? subjectMatch(n.subject, entry) : true;
+        })
+        .filter(n =>
+          (n.title||"").toLowerCase().includes(q.toLowerCase()) ||
+          (n.subject||"").toLowerCase().includes(q.toLowerCase())
+        )
+        .sort((a,b) =>
+          sort === "price-lo" ? a.price - b.price :
+          sort === "price-hi" ? b.price - a.price : 0
+        );
+
+      return (
+        <>
+          <div className="page-hero">
+            <div className="page-hero-inner">
+              <h1 className="page-h1">Browse Notes</h1>
+              <p className="page-sub-text">{notesLoading ? "Loading…" : `${notes.length} note${notes.length!==1?"s":""} available`}</p>
+            </div>
+          </div>
+          <div className="page-wrap">
+            {notesError && <div className="error-banner">⚠️ {notesError}</div>}
+            <div className="controls">
+              <input className="search-box" placeholder="🔍  Search subjects, topics…" value={q} onChange={e => setQ(e.target.value)}/>
+              <select className="sel" value={subj} onChange={e => setSubj(e.target.value)}>
+                <option value="all">All Subjects</option>
+                {SUBJECTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <select className="sel" value={sort} onChange={e => setSort(e.target.value)}>
+                <option value="default">Default Order</option>
+                <option value="price-lo">Price: Low → High</option>
+                <option value="price-hi">Price: High → Low</option>
+              </select>
+            </div>
+            <div className="pills">
+              {SUBJECTS.map(s => (
+                <button key={s.id} className={`pill ${subj===s.id?"on":""}`} onClick={() => setSubj(subj===s.id?"all":s.id)}>
+                  {s.icon} {s.name}
+                </button>
+              ))}
+            </div>
+            {notesLoading
+              ? <div className="notes-grid">{[1,2,3,4].map(i => <SkeletonCard key={i}/>)}</div>
+              : shown.length === 0
+                ? <div className="empty">😶 No notes found. Try a different search or filter.</div>
+                : <div className="notes-grid">{shown.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+            }
+          </div>
+        </>
+      );
+    }
+
+    // ─── SUBJECT PAGE ────────────────────────────────────────────────────
+    function SubjectPage({ subject, go, addToCart, notes, notesLoading, purchases }) {
+      if (!subject) { go("browse"); return null; }
+      const filtered = notes.filter(n => subjectMatch(n.subject, subject));
+      return (
+        <div className="page-wrap">
+          <button className="back-btn" onClick={() => go("browse")}>← Back to Browse</button>
+          <div className="subj-header" style={{"--ac":subject.ac}}>
+            <span className="subj-icon">{subject.icon}</span>
+            <div>
+              <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.9rem",fontWeight:900,color:"var(--navy)",marginBottom:"0.3rem"}}>{subject.name}</h1>
+              <p style={{color:"var(--muted)",fontSize:"0.92rem"}}>{subject.desc}</p>
+            </div>
+          </div>
+          {notesLoading
+            ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
+            : filtered.length > 0
+              ? <div className="notes-grid">{filtered.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+              : <div className="empty">No notes for this subject yet — be the first to upload!</div>
+          }
+        </div>
+      );
+    }
+
+    // ─── SELL ────────────────────────────────────────────────────────────
+    function Sell({ user, go, showToast }) {
+      const [f, setF]             = useState({title:"",subject:"",price:"",pages:""});
+      const [done, setDone]       = useState(false);
+      const [saving, setSaving]   = useState(false);
+      const [uploading, setUploading]       = useState(false);
+      const [uploadedUrl, setUploadedUrl]   = useState(null);
+      const [uploadedName, setUploadedName] = useState(null);
+      const set = e => setF(p => ({...p,[e.target.name]:e.target.value}));
+
+      if (!user) return (
+        <div className="page-wrap center-page">
+          <div className="locked-box">
+            <div style={{fontSize:"3rem"}}>🔒</div>
+            <h2>Login to Sell Notes</h2>
+            <p>Create a free account to start earning from your study materials.</p>
+            <div style={{display:"flex",gap:"1rem",justifyContent:"center",flexWrap:"wrap"}}>
+              <button className="btn-hero-primary" onClick={() => go("register")}>Create Account</button>
+              <button className="btn-hero-ghost" style={{color:"var(--navy)",borderColor:"var(--navy)"}} onClick={() => go("login")}>Login</button>
+            </div>
+          </div>
+        </div>
+      );
+
+      if (done) return (
+        <div className="page-wrap center-page">
+          <div className="locked-box">
+            <div style={{fontSize:"3rem"}}>🎉</div>
+            <h2>Notes Submitted!</h2>
+            <p>Your notes are live and available for purchase.</p>
+            <button className="btn-hero-primary" onClick={() => { setDone(false); setF({title:"",subject:"",price:"",pages:""}); setUploadedUrl(null); setUploadedName(null); }}>Submit Another Set</button>
+          </div>
+        </div>
+      );
+
+      const handleUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const allowed = [
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ];
+        if (!allowed.includes(file.type)) { showToast("Only PDF or DOCX files allowed.", "error"); return; }
+        if (file.size > 20 * 1024 * 1024) { showToast("File too large — max 20MB.", "error"); return; }
+        setUploading(true);
+        const fileName = `${Date.now()}-${file.name.replace(/\s+/g,"-")}`;
+        const { data, error } = await supabase.storage.from("notes-full").upload(fileName, file);
+        setUploading(false);
+        if (error) { showToast("Upload failed: " + error.message, "error"); return; }
+        const { data: urlData } = supabase.storage.from("notes-full").getPublicUrl(data.path);
+        setUploadedUrl(urlData.publicUrl);
+        setUploadedName(file.name);
+        showToast("File uploaded successfully!");
+      };
+
+      const submit = async () => {
+        if (!f.title || !f.subject || !f.price) { showToast("Please fill all required fields.", "error"); return; }
+        setSaving(true);
+        const { data: { user: u } } = await supabase.auth.getUser();
+        const { error } = await supabase.from("notes").insert([{
+          title:     f.title,
+          subject:   f.subject,
+          price:     parseInt(f.price),
+          pages:     f.pages ? parseInt(f.pages) : null,
+          file_url:  uploadedUrl || null,
+          seller_id: u?.id || null,
+        }]);
+        setSaving(false);
+        if (error) { showToast("Save failed: " + error.message, "error"); return; }
+        showToast("Notes submitted successfully!");
+        setDone(true);
+      };
+
+      return (
+        <>
+          <div className="page-hero">
+            <div className="page-hero-inner">
+              <h1 className="page-h1">Sell Your Notes</h1>
+              <p className="page-sub-text">Earn 80% of every sale. Our sellers average ₹4,200/month.</p>
+            </div>
+          </div>
+          <div className="page-wrap">
+            <div className="sell-grid">
+              <div className="form-card">
+                <div className="form-sec-title">Note Details</div>
+                <label className="flabel">Title <span className="req">*</span></label>
+                <input className="finput" name="title" placeholder="e.g. Complete Constitutional Law Notes" value={f.title} onChange={set}/>
+                <label className="flabel">Subject <span className="req">*</span></label>
+                <select className="finput" name="subject" value={f.subject} onChange={set}>
+                  <option value="">Select subject</option>
+                  {SUBJECTS.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+                <div className="two-col">
+                  <div>
+                    <label className="flabel">Price (₹) <span className="req">*</span></label>
+                    <input className="finput" name="price" type="number" placeholder="199" value={f.price} onChange={set}/>
+                  </div>
+                  <div>
+                    <label className="flabel">Pages</label>
+                    <input className="finput" name="pages" type="number" placeholder="48" value={f.pages} onChange={set}/>
+                  </div>
+                </div>
+                <label className="flabel">Upload PDF or DOCX</label>
+                <div className="upload-zone" onClick={() => document.getElementById("file-input").click()}>
+                  {uploading ? "⏳ Uploading…" : uploadedName ? <span style={{color:"var(--success)"}}>✅ {uploadedName}</span> : "📎 Click to select file (PDF or DOCX, max 20MB)"}
+                </div>
+                <input id="file-input" type="file" accept=".pdf,.docx" style={{display:"none"}} onChange={handleUpload}/>
+                <button className="btn-full" onClick={submit} disabled={saving}>{saving?"Saving…":"Submit for Review →"}</button>
+              </div>
+              <div>
+                <div className="sidebar-card">
+                  <div className="sidebar-h">💰 Earning Structure</div>
+                  <div className="earn-row"><span>Your Share</span><strong>80%</strong></div>
+                  <div className="earn-row"><span>Platform Fee</span><strong>20%</strong></div>
+                  <div className="earn-row hl"><span>On ₹299 note</span><strong>You earn ₹239</strong></div>
+                </div>
+                <div className="sidebar-card">
+                  <div className="sidebar-h">📋 Seller Guidelines</div>
+                  <ul className="guide-ul">
+                    <li>PDF or DOCX format, min. 10 pages</li>
+                    <li>Clear handwriting or typed notes</li>
+                    <li>Include subject &amp; semester info</li>
+                    <li>No copied textbook content</li>
+                    <li>Review takes 24–48 hours</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    // ─── AUTH ────────────────────────────────────────────────────────────
+    function Auth({ mode, setUser, go, showToast }) {
+      const [f, setF]           = useState({name:"",email:"",password:"",college:""});
+      const [loading, setLoading] = useState(false);
+      const set = e => setF(p => ({...p,[e.target.name]:e.target.value}));
+
+      const submit = async () => {
+        if (!f.email || !f.password) { showToast("Please fill all fields.", "error"); return; }
+        setLoading(true);
+        if (mode === "register") {
+          const { error } = await supabase.auth.signUp({ email: f.email, password: f.password });
+          setLoading(false);
+          if (error) { showToast(error.message, "error"); return; }
+          showToast("Account created! Check your email to confirm, then login.");
+          go("login");
+        } else {
+          const { data, error } = await supabase.auth.signInWithPassword({ email: f.email, password: f.password });
+          setLoading(false);
+          if (error) { showToast(error.message, "error"); return; }
+          setUser(data.user.email);
+          showToast("Welcome back!");
+          go("home");
+        }
+      };
+
+      return (
+        <div className="auth-page">
+          <div className="auth-card">
+            <div className="auth-logo">⚖ Lex<span>Notes</span></div>
+            <h2 className="auth-h">{mode==="login"?"Welcome Back":"Create Account"}</h2>
+            <p className="auth-sub">{mode==="login"?"Login to access your notes and cart.":"Join 12,000+ law students on LexNotes."}</p>
+            {mode==="register" && <>
+              <label className="flabel">Full Name</label>
+              <input className="finput" name="name" placeholder="e.g. Sahil Mehta" value={f.name} onChange={set}/>
+              <label className="flabel">College</label>
+              <input className="finput" name="college" placeholder="e.g. NMIMS Mumbai" value={f.college} onChange={set}/>
+            </>}
+            <label className="flabel">Email</label>
+            <input className="finput" name="email" type="email" placeholder="you@law.edu" value={f.email} onChange={set}/>
+            <label className="flabel">Password</label>
+            <input className="finput" name="password" type="password" placeholder="••••••••" value={f.password} onChange={set}/>
+            <button className="btn-full" style={{marginTop:"1.75rem"}} onClick={submit} disabled={loading}>
+              {loading?"Please wait…":mode==="login"?"Login →":"Create Account →"}
+            </button>
+            <p className="auth-switch">
+              {mode==="login"
+                ? <>Don't have an account? <button className="link-btn" onClick={() => go("register")}>Sign Up</button></>
+                : <>Already registered? <button className="link-btn" onClick={() => go("login")}>Login</button></>}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── CART DRAWER ─────────────────────────────────────────────────────
+    function CartDrawer({ cart, remove, close, go, onCheckout }) {
+      const total = cart.reduce((s,c) => s + Number(c.price), 0);
+      return (
+        <div className="overlay" onClick={close}>
+          <div className="drawer" onClick={e => e.stopPropagation()}>
+            <div className="drawer-head">
+              <h3>🛒 Cart ({cart.length})</h3>
+              <button className="close-x" onClick={close}>✕</button>
+            </div>
+            {cart.length === 0 ? (
+              <div className="cart-empty">
+                <div style={{fontSize:"2.5rem"}}>🛒</div>
+                <p>Your cart is empty.</p>
+                <button className="link-btn" onClick={() => { close(); go("browse"); }}>Browse notes →</button>
+              </div>
+            ) : (
+              <>
+                <div className="drawer-body">
+                  {cart.map(c => (
+                    <div key={c.id} className="cart-item">
+                      <div>
+                        <strong>{(c.title||"").length>42?c.title.slice(0,42)+"…":c.title}</strong>
+                        <small>{c.subject}</small>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:"0.75rem",flexShrink:0}}>
+                        <span style={{fontFamily:"'Playfair Display',serif",fontWeight:900,color:"var(--navy)"}}>₹{c.price}</span>
+                        <button className="remove-x" onClick={() => remove(c.id)}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="drawer-foot">
+                  <div className="cart-total">
+                    <span>Total ({cart.length} items)</span>
+                    <strong>₹{total}</strong>
+                  </div>
+                  <button className="btn-full" style={{marginTop:0}} onClick={onCheckout}>
+                    Checkout → ₹{total}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+function SellerDashboard({ myNotes, purchases, go, profile }) {
+  const [deletingId, setDeletingId] = useState(null);
+  const [notes, setNotes]           = useState(myNotes);
+
+  useEffect(() => { setNotes(myNotes); }, [myNotes]);
+
+  // Calculate per-note sales from purchases
+  const salesByNote = {};
+  purchases.forEach(p => {
+    if (!salesByNote[p.note_id]) salesByNote[p.note_id] = { count: 0, revenue: 0 };
+    salesByNote[p.note_id].count++;
+    salesByNote[p.note_id].revenue += Number(p.amount);
+  });
+
+  // Only count sales for this seller's notes
+  const myNoteIds = new Set(notes.map(n => n.id));
+  const totalSales    = Object.entries(salesByNote).filter(([id]) => myNoteIds.has(id)).reduce((s,[,v]) => s + v.count, 0);
+  const totalRevenue  = Object.entries(salesByNote).filter(([id]) => myNoteIds.has(id)).reduce((s,[,v]) => s + v.revenue, 0);
+  const totalEarnings = Math.floor(totalRevenue * 0.8);
+
+  const deleteNote = async (noteId) => {
+    if (!window.confirm("Delete this note? This cannot be undone.")) return;
+    setDeletingId(noteId);
+    const { error } = await supabase.from("notes").delete().eq("id", noteId);
+    setDeletingId(null);
+    if (error) { alert("Delete failed: " + error.message); return; }
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+  };
+
+  return (
+    <div>
+      {/* STATS ROW */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"1rem",marginBottom:"2rem"}}>
+        {[
+          { label:"Notes Uploaded", value: notes.length,      icon:"📝" },
+          { label:"Total Sales",    value: totalSales,         icon:"🛒" },
+          { label:"Total Earnings", value: `₹${totalEarnings}`,icon:"💰" },
+          { label:"Avg per Note",   value: notes.length > 0 ? `₹${Math.floor(totalEarnings/notes.length)}` : "₹0", icon:"📊" },
+        ].map(s => (
+          <div key={s.label} style={{background:"white",borderRadius:"14px",padding:"1.5rem",boxShadow:"var(--shadow)",textAlign:"center"}}>
+            <div style={{fontSize:"2rem",marginBottom:"0.5rem"}}>{s.icon}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.6rem",fontWeight:900,color:"var(--navy)"}}>{s.value}</div>
+            <div style={{fontSize:"0.78rem",color:"var(--muted)",marginTop:"0.2rem"}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* NOTES TABLE */}
+      <div style={{background:"white",borderRadius:"16px",boxShadow:"var(--shadow)",overflow:"hidden",marginBottom:"1.5rem"}}>
+        <div style={{padding:"1.25rem 1.5rem",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.1rem",color:"var(--navy)"}}>Your Notes</h3>
+          <button className="btn-gold" onClick={() => go("sell")}>+ Upload New</button>
+        </div>
+        {notes.length === 0 ? (
+          <div className="empty">No notes yet.</div>
+        ) : (
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:"0.88rem"}}>
+              <thead>
+                <tr style={{background:"var(--cream)"}}>
+                  {["Title","Subject","Price","Sales","Your Earnings","Action"].map(h => (
+                    <th key={h} style={{padding:"0.75rem 1rem",textAlign:"left",fontWeight:700,color:"var(--muted)",fontSize:"0.78rem",textTransform:"uppercase",letterSpacing:"0.05em"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {notes.map((n, i) => {
+                  const sale = salesByNote[n.id] || { count:0, revenue:0 };
+                  const earned = Math.floor(sale.revenue * 0.8);
+                  return (
+                    <tr key={n.id} style={{borderTop:"1px solid var(--border)",background:i%2===0?"white":"#fafaf8"}}>
+                      <td style={{padding:"0.85rem 1rem",fontWeight:600,color:"var(--navy)",maxWidth:"200px"}}>
+                        <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{n.title}</div>
+                        {n.file_url && <div style={{fontSize:"0.75rem",color:"var(--success)",marginTop:"0.15rem"}}>✓ File uploaded</div>}
+                      </td>
+                      <td style={{padding:"0.85rem 1rem",color:"var(--muted)"}}>{n.subject}</td>
+                      <td style={{padding:"0.85rem 1rem",fontWeight:700,color:"var(--navy)"}}>₹{n.price}</td>
+                      <td style={{padding:"0.85rem 1rem",textAlign:"center"}}>
+                        <span style={{background:sale.count>0?"#dcfce7":"var(--cream)",color:sale.count>0?"var(--success)":"var(--muted)",padding:"0.2rem 0.6rem",borderRadius:"20px",fontWeight:700,fontSize:"0.82rem"}}>
+                          {sale.count} {sale.count===1?"sale":"sales"}
+                        </span>
+                      </td>
+                      <td style={{padding:"0.85rem 1rem",fontWeight:700,color:earned>0?"var(--success)":"var(--muted)"}}>
+                        ₹{earned}
+                      </td>
+                      <td style={{padding:"0.85rem 1rem"}}>
+                        <button
+                          onClick={() => deleteNote(n.id)}
+                          disabled={deletingId===n.id}
+                          style={{color:"var(--danger)",fontSize:"0.82rem",fontWeight:600,opacity:deletingId===n.id?0.5:1}}
+                        >
+                          {deletingId===n.id?"Deleting…":"🗑 Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{borderTop:"2px solid var(--border)",background:"var(--cream)"}}>
+                  <td colSpan="4" style={{padding:"0.85rem 1rem",fontWeight:700,color:"var(--navy)"}}>Total Earnings (80% of ₹{totalRevenue})</td>
+                  <td style={{padding:"0.85rem 1rem",fontWeight:900,color:"var(--success)",fontFamily:"'Playfair Display',serif",fontSize:"1.1rem"}}>₹{totalEarnings}</td>
+                  <td/>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div style={{background:"linear-gradient(135deg,var(--navy),var(--navy2))",borderRadius:"14px",padding:"1.5rem 2rem",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"1rem"}}>
+        <div>
+          <div style={{color:"white",fontWeight:700,fontSize:"1rem",marginBottom:"0.25rem"}}>Ready to earn more?</div>
+          <div style={{color:"rgba(255,255,255,0.65)",fontSize:"0.85rem"}}>Upload more notes and grow your earnings.</div>
+        </div>
+        <button className="btn-gold" onClick={() => go("sell")}>Upload Notes →</button>
+      </div>
+    </div>
+  );
+}
+    // ─── PROFILE ─────────────────────────────────────────────────────────
+    function Profile({ go, addToCart, notes, notesLoading, purchases }) {
+      const [profile, setProfile]           = useState(null);
+      const [editing, setEditing]           = useState(false);
+      const [activeTab, setActiveTab] = useState("profile");
+      const [f, setF]                       = useState({full_name:"",college:"",bio:"",year:"",programme:""});
+      const [saving, setSaving]             = useState(false);
+      const [avatarUploading, setAvatarUploading] = useState(false);
+
+      useEffect(() => {
+        const load = async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+          setProfile(data);
+          setF({
+            full_name:  data?.full_name  || "",
+            college:    data?.college    || "",
+            bio:        data?.bio        || "",
+            year:       data?.year       || "",
+            programme:  data?.programme  || ""
+          });
+        };
+        load();
+      }, []);
+
+      const save = async () => {
+        setSaving(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("profiles").update({
+          full_name: f.full_name, college: f.college,
+          bio: f.bio, year: f.year, programme: f.programme
+        }).eq("id", user.id);
+        setProfile(p => ({...p,...f}));
+        setSaving(false);
+        setEditing(false);
+      };
+
+      const uploadAvatar = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setAvatarUploading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data, error } = await supabase.storage.from("avatars").upload(`${user.id}-avatar`, file, { upsert: true });
+        if (error) { setAvatarUploading(false); return; }
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
+        await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", user.id);
+        setProfile(p => ({...p, avatar_url: urlData.publicUrl}));
+        setAvatarUploading(false);
+      };
+
+      const myNotes = notes.filter(n => n.seller_id === profile?.id);
+
+      if (!profile) return <div className="center-page"><div className="empty">Loading profile…</div></div>;
+
+const hasSales = myNotes.length > 0;
+
+return (
+  <div className="page-wrap">
+
+    {/* TAB BAR */}
+    <div style={{display:"flex",gap:"0.5rem",marginBottom:"2rem",borderBottom:"2px solid var(--border)",paddingBottom:"0"}}>
+      <button
+        onClick={() => setActiveTab("profile")}
+        style={{
+          padding:"0.6rem 1.5rem",
+          fontWeight:700,
+          fontSize:"0.9rem",
+          borderBottom: activeTab==="profile" ? "3px solid var(--navy)" : "3px solid transparent",
+          color: activeTab==="profile" ? "var(--navy)" : "var(--muted)",
+          marginBottom:"-2px",
+          transition:"0.2s"
+        }}
+      >
+        👤 My Profile
+      </button>
+      {hasSales && (
+        <button
+          onClick={() => setActiveTab("dashboard")}
+          style={{
+            padding:"0.6rem 1.5rem",
+            fontWeight:700,
+            fontSize:"0.9rem",
+            borderBottom: activeTab==="dashboard" ? "3px solid var(--gold)" : "3px solid transparent",
+            color: activeTab==="dashboard" ? "var(--gold)" : "var(--muted)",
+            marginBottom:"-2px",
+            transition:"0.2s"
+          }}
+        >
+          📊 Seller Dashboard
+        </button>
+      )}
+    </div>
+
+    {/* PROFILE TAB */}
+    {activeTab === "profile" && (
+      <>
+        <div style={{background:"white",borderRadius:"16px",padding:"2rem",boxShadow:"var(--shadow)",marginBottom:"2rem",display:"flex",gap:"2rem",alignItems:"flex-start",flexWrap:"wrap"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{width:"100px",height:"100px",borderRadius:"50%",overflow:"hidden",background:"var(--cream)",margin:"0 auto 0.75rem",border:"3px solid var(--gold)"}}>
+              {profile.avatar_url
+                ? <img src={profile.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"2.5rem"}}>👤</div>
+              }
+            </div>
+            <label style={{cursor:"pointer",color:"var(--info)",fontSize:"0.8rem",textDecoration:"underline"}}>
+              {avatarUploading?"Uploading…":"Change photo"}
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={uploadAvatar}/>
+            </label>
+          </div>
+          <div style={{flex:1}}>
+            {editing ? (
+              <>
+                <label className="flabel">Full Name</label>
+                <input className="finput" value={f.full_name} onChange={e => setF(p=>({...p,full_name:e.target.value}))} placeholder="Your name"/>
+                <label className="flabel">College</label>
+                <input className="finput" value={f.college} onChange={e => setF(p=>({...p,college:e.target.value}))} placeholder="Your college"/>
+                <label className="flabel">Bio</label>
+                <textarea className="finput ftextarea" value={f.bio} onChange={e => setF(p=>({...p,bio:e.target.value}))} placeholder="Tell buyers about yourself…"/>
+                <label className="flabel">Year <span style={{color:"var(--muted)",fontWeight:400}}>(optional)</span></label>
+                <select className="finput" value={f.year||""} onChange={e => setF(p=>({...p,year:e.target.value}))}>
+                  <option value="">Select year</option>
+                  {["1st Year","2nd Year","3rd Year","4th Year","5th Year","Graduated"].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <label className="flabel">Programme <span style={{color:"var(--muted)",fontWeight:400}}>(optional)</span></label>
+                <select className="finput" value={f.programme||""} onChange={e => setF(p=>({...p,programme:e.target.value}))}>
+                  <option value="">Select programme</option>
+                  {["BA LLB","BBA LLB","BSc LLB","BCom LLB","LLB","LLM"].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <div style={{display:"flex",gap:"1rem",marginTop:"1rem"}}>
+                  <button className="btn-full" style={{width:"auto",padding:"0.5rem 1.5rem"}} onClick={save} disabled={saving}>{saving?"Saving…":"Save"}</button>
+                  <button onClick={() => setEditing(false)} style={{color:"var(--muted)",textDecoration:"underline",fontSize:"0.88rem"}}>Cancel</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.6rem",color:"var(--navy)"}}>{profile.full_name||"No name set"}</h2>
+                {profile.college   && <p style={{color:"var(--muted)",margin:"0.25rem 0"}}>🏛 {profile.college}</p>}
+                {profile.year      && <p style={{color:"var(--muted)",margin:"0.25rem 0"}}>📅 {profile.year}</p>}
+                {profile.programme && <p style={{color:"var(--muted)",margin:"0.25rem 0"}}>🎓 {profile.programme}</p>}
+                {profile.bio       && <p style={{marginTop:"0.75rem",fontSize:"0.9rem",lineHeight:1.6}}>{profile.bio}</p>}
+                <button onClick={() => setEditing(true)} style={{marginTop:"1rem",color:"var(--info)",textDecoration:"underline",fontSize:"0.88rem"}}>✏️ Edit Profile</button>
+              </>
+            )}
+          </div>
+        </div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.4rem",color:"var(--navy)",marginBottom:"1.5rem"}}>My Uploaded Notes ({myNotes.length})</h2>
+        {notesLoading
+          ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
+          : myNotes.length === 0
+            ? <div className="empty">You haven't uploaded any notes yet. <button className="link-btn" onClick={() => go("sell")}>Upload now →</button></div>
+            : <div className="notes-grid">{myNotes.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+        }
+      </>
+    )}
+
+    {/* SELLER DASHBOARD TAB */}
+    {activeTab === "dashboard" && (
+      <SellerDashboard myNotes={myNotes} purchases={purchases} go={go} profile={profile}/>
+    )}
+  </div>
+);
+    }
+
+    // ─── LIBRARY ──────────────────────────────────────────────────────────
+    function Library({ go, notes, purchases, addToCart }) {
+      const purchasedNotes = notes.filter(n => purchases.find(p => p.note_id === n.id));
+      return (
+        <>
+          <div className="page-hero">
+            <div className="page-hero-inner">
+              <h1 className="page-h1">My Library</h1>
+              <p className="page-sub-text">{purchasedNotes.length} note{purchasedNotes.length!==1?"s":""} purchased</p>
+            </div>
+          </div>
+          <div className="page-wrap">
+            {purchasedNotes.length === 0 ? (
+              <div className="empty">
+                <div style={{fontSize:"3rem",marginBottom:"1rem"}}>📚</div>
+                <p>You haven't purchased any notes yet.</p>
+                <button className="link-btn" onClick={() => go("browse")}>Browse notes →</button>
+              </div>
+            ) : (
+              <div className="notes-grid">
+                {purchasedNotes.map(n => (
+                  <div key={n.id} className="ncard" style={{borderTop:"3px solid var(--success)"}}>
+                    <div className="nsubj">{n.subject||"General"}</div>
+                    <h3 className="ntitle">{n.title}</h3>
+                    <div className="ndetails">
+                      {n.pages && <span>📄 {n.pages} pages</span>}
+                      <span style={{color:"var(--success)",fontWeight:600,fontSize:"0.8rem"}}>✓ Purchased</span>
+                    </div>
+                    <div className="nfooter">
+                      <span className="nprice">₹{n.price}</span>
+                      {n.file_url && (
+                        <a href={n.file_url} target="_blank" rel="noreferrer" style={{background:"var(--success)",color:"white",padding:"0.48rem 1.1rem",borderRadius:"8px",fontSize:"0.84rem",fontWeight:600}}>
+                          Download
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      );
+    }
+
+    // ─── SELLERS ──────────────────────────────────────────────────────────
+    function Sellers({ go, addToCart, notes, notesLoading, purchases }) {
+      const [sellers, setSellers]           = useState([]);
+      const [loading, setLoading]           = useState(true);
+      const [q, setQ]                       = useState("");
+      const [filterCollege, setFilterCollege] = useState("all");
+      const [selected, setSelected]         = useState(null);
+
+      useEffect(() => {
+        const load = async () => {
+          const { data, error } = await supabase.from("profiles").select("*").not("full_name","is",null);
+          if (!error) setSellers(data || []);
+          setLoading(false);
+        };
+        load();
+      }, []);
+
+      const colleges = ["all", ...new Set(sellers.map(s => s.college).filter(Boolean))];
+      const shown = sellers
+        .filter(s => filterCollege==="all" || s.college===filterCollege)
+        .filter(s =>
+          (s.full_name||"").toLowerCase().includes(q.toLowerCase()) ||
+          (s.college||"").toLowerCase().includes(q.toLowerCase())
+        );
+
+      if (selected) {
+        const sellerNotes = notes.filter(n => n.seller_id === selected.id);
+        return (
+          <div className="page-wrap">
+            <button className="back-btn" onClick={() => setSelected(null)}>← Back to Sellers</button>
+            <div style={{background:"white",borderRadius:"16px",padding:"2rem",boxShadow:"var(--shadow)",marginBottom:"2rem",display:"flex",gap:"2rem",alignItems:"flex-start",flexWrap:"wrap"}}>
+              <div style={{textAlign:"center",flexShrink:0}}>
+                <div style={{width:"100px",height:"100px",borderRadius:"50%",overflow:"hidden",background:"var(--cream)",margin:"0 auto 0.5rem",border:"3px solid var(--gold)"}}>
+                  {selected.avatar_url
+                    ? <img src={selected.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"2.5rem"}}>👤</div>
+                  }
+                </div>
+              </div>
+              <div style={{flex:1}}>
+                <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.8rem",color:"var(--navy)",marginBottom:"0.5rem"}}>{selected.full_name}</h2>
+                <div style={{display:"flex",flexWrap:"wrap",gap:"0.75rem",marginBottom:"0.75rem"}}>
+                  {selected.college   && <span style={{background:"var(--cream)",padding:"0.25rem 0.75rem",borderRadius:"20px",fontSize:"0.82rem",color:"var(--navy)"}}>🏛 {selected.college}</span>}
+                  {selected.year      && <span style={{background:"var(--cream)",padding:"0.25rem 0.75rem",borderRadius:"20px",fontSize:"0.82rem",color:"var(--navy)"}}>📅 {selected.year}</span>}
+                  {selected.programme && <span style={{background:"var(--cream)",padding:"0.25rem 0.75rem",borderRadius:"20px",fontSize:"0.82rem",color:"var(--navy)"}}>🎓 {selected.programme}</span>}
+                  <span style={{background:"var(--cream)",padding:"0.25rem 0.75rem",borderRadius:"20px",fontSize:"0.82rem",color:"var(--navy)"}}>📝 {sellerNotes.length} notes uploaded</span>
+                </div>
+                {selected.bio && <p style={{fontSize:"0.92rem",lineHeight:1.7,color:"#374151"}}>{selected.bio}</p>}
+              </div>
+            </div>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.3rem",color:"var(--navy)",marginBottom:"1.5rem"}}>Notes by {selected.full_name}</h3>
+            {notesLoading
+              ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
+              : sellerNotes.length === 0
+                ? <div className="empty">This seller hasn't uploaded any notes yet.</div>
+                : <div className="notes-grid">{sellerNotes.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+            }
+          </div>
+        );
+      }
+
+      return (
+        <>
+          <div className="page-hero">
+            <div className="page-hero-inner">
+              <h1 className="page-h1">Browse Sellers</h1>
+              <p className="page-sub-text">Find notes from students at top law colleges across India</p>
+            </div>
+          </div>
+          <div className="page-wrap">
+            <div className="controls">
+              <input className="search-box" placeholder="🔍  Search by name or college…" value={q} onChange={e => setQ(e.target.value)}/>
+              <select className="sel" value={filterCollege} onChange={e => setFilterCollege(e.target.value)}>
+                {colleges.map(c => <option key={c} value={c}>{c==="all"?"All Colleges":c}</option>)}
+              </select>
+            </div>
+            {loading
+              ? <div className="notes-grid">{[1,2,3,4].map(i => <SkeletonCard key={i}/>)}</div>
+              : shown.length === 0
+                ? <div className="empty">😶 No sellers found.</div>
+                : <div className="subjects-grid">
+                    {shown.map(s => (
+                      <div key={s.id} className="scard" style={{"--ac":"var(--gold)"}} onClick={() => setSelected(s)}>
+                        <div style={{display:"flex",alignItems:"center",gap:"1rem",marginBottom:"1rem"}}>
+                          <div style={{width:"56px",height:"56px",borderRadius:"50%",overflow:"hidden",background:"var(--cream)",flexShrink:0,border:"2px solid var(--gold)"}}>
+                            {s.avatar_url
+                              ? <img src={s.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                              : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.5rem"}}>👤</div>
+                            }
+                          </div>
+                          <div>
+                            <div className="scard-name">{s.full_name}</div>
+                            {s.college && <div className="scard-desc" style={{marginBottom:0}}>🏛 {s.college}</div>}
+                          </div>
+                        </div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:"0.4rem",marginBottom:"0.75rem"}}>
+                          {s.year      && <span style={{background:"var(--cream)",padding:"0.15rem 0.6rem",borderRadius:"20px",fontSize:"0.75rem",color:"var(--navy)"}}>{s.year}</span>}
+                          {s.programme && <span style={{background:"var(--cream)",padding:"0.15rem 0.6rem",borderRadius:"20px",fontSize:"0.75rem",color:"var(--navy)"}}>{s.programme}</span>}
+                        </div>
+                        {s.bio && <p className="scard-desc" style={{marginBottom:"0.75rem"}}>{s.bio.slice(0,80)}{s.bio.length>80?"…":""}</p>}
+                        <span className="scard-count">{notes.filter(n => n.seller_id===s.id).length} notes uploaded</span>
+                      </div>
+                    ))}
+                  </div>
+            }
+          </div>
+        </>
+      );
+    }
+
+    // ─── COMMUNITY ────────────────────────────────────────────────────────
+    // Requires two tables in Supabase:
+    //   posts:   id, thread_id, author_id, author_name, author_avatar, body, likes, created_at
+    //   replies: id, post_id, author_id, author_name, author_avatar, body, created_at
+    // Run the SQL in the comment block below to create them.
+    /*
+      create table posts (
+        id uuid default gen_random_uuid() primary key,
+        thread_id text not null,
+        author_id uuid references auth.users(id),
+        author_name text,
+        author_avatar text,
+        body text not null,
+        likes integer default 0,
+        created_at timestamptz default now()
+      );
+      create table replies (
+        id uuid default gen_random_uuid() primary key,
+        post_id uuid references posts(id) on delete cascade,
+        author_id uuid references auth.users(id),
+        author_name text,
+        author_avatar text,
+        body text not null,
+        created_at timestamptz default now()
+      );
+      alter table posts   enable row level security;
+      alter table replies enable row level security;
+      create policy "public read posts"   on posts   for select using (true);
+      create policy "public read replies" on replies for select using (true);
+      create policy "auth insert posts"   on posts   for insert to authenticated with check (true);
+      create policy "auth insert replies" on replies for insert to authenticated with check (true);
+      create policy "auth update posts"   on posts   for update to authenticated using (auth.uid() = author_id);
+    */
+    function Community({ user, go }) {
+      const [thread, setThread]   = useState("general");
+      const [posts, setPosts]     = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [newPost, setNewPost] = useState("");
+      const [posting, setPosting] = useState(false);
+      const [replyTo, setReplyTo] = useState(null);
+      const [replyText, setReplyText] = useState("");
+      const [replies, setReplies] = useState({});
+      const [profile, setProfile] = useState(null);
+      const textRef = useRef(null);
+
+      useEffect(() => {
+        if (user) {
+          supabase.auth.getUser().then(({ data: { user: u } }) => {
+            if (u) supabase.from("profiles").select("full_name,avatar_url").eq("id",u.id).single()
+              .then(({ data }) => setProfile(data));
+          });
+        }
+      }, [user]);
+
+      useEffect(() => {
+        loadPosts();
+      }, [thread]);
+
+      const loadPosts = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("posts")
+          .select("*")
+          .eq("thread_id", thread)
+          .order("created_at", { ascending: false });
+        if (!error) setPosts(data || []);
+        setLoading(false);
+      };
+
+      const loadReplies = async (postId) => {
+        if (replies[postId]) { setReplyTo(replyTo===postId?null:postId); return; }
+        const { data } = await supabase.from("replies").select("*").eq("post_id",postId).order("created_at",{ascending:true});
+        setReplies(r => ({...r,[postId]:data||[]}));
+        setReplyTo(replyTo===postId?null:postId);
+      };
+
+      const submitPost = async () => {
+        if (!newPost.trim()) return;
+        if (!user) { go("login"); return; }
+        setPosting(true);
+        const { data: { user: u } } = await supabase.auth.getUser();
+        const { error } = await supabase.from("posts").insert([{
+          thread_id:    thread,
+          author_id:    u.id,
+          author_name:  profile?.full_name || u.email.split("@")[0],
+          author_avatar:profile?.avatar_url || null,
+          body:         newPost.trim(),
+        }]);
+        setPosting(false);
+        if (!error) { setNewPost(""); loadPosts(); }
+      };
+
+      const submitReply = async (postId) => {
+        if (!replyText.trim() || !user) return;
+        const { data: { user: u } } = await supabase.auth.getUser();
+        const { error } = await supabase.from("replies").insert([{
+          post_id:      postId,
+          author_id:    u.id,
+          author_name:  profile?.full_name || u.email.split("@")[0],
+          author_avatar:profile?.avatar_url || null,
+          body:         replyText.trim(),
+        }]);
+        if (!error) {
+          setReplyText("");
+          const { data } = await supabase.from("replies").select("*").eq("post_id",postId).order("created_at",{ascending:true});
+          setReplies(r => ({...r,[postId]:data||[]}));
+        }
+      };
+
+      const likePost = async (post) => {
+        await supabase.from("posts").update({likes:(post.likes||0)+1}).eq("id",post.id);
+        setPosts(ps => ps.map(p => p.id===post.id ? {...p,likes:(p.likes||0)+1} : p));
+      };
+
+      const activeThread = COMM_THREADS.find(t => t.id===thread);
+
+      return (
+        <>
+          <div className="page-hero">
+            <div className="page-hero-inner">
+              <h1 className="page-h1">Community</h1>
+              <p className="page-sub-text">Discuss notes quality, subjects, and platform feedback</p>
+            </div>
+          </div>
+          <div className="page-wrap">
+            <div className="comm-layout">
+
+              {/* SIDEBAR */}
+              <div className="comm-sidebar">
+                <div className="comm-sidebar-title">Threads</div>
+                {COMM_THREADS.map(t => (
+                  <button key={t.id} className={`comm-thread-btn ${thread===t.id?"active":""}`} onClick={() => setThread(t.id)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* MAIN */}
+              <div className="comm-main">
+
+                {/* COMPOSE */}
+                <div className="comm-compose">
+                  <div style={{fontWeight:700,fontSize:"0.95rem",color:"var(--navy)",marginBottom:"0.75rem"}}>
+                    {activeThread?.icon} {activeThread?.label}
+                  </div>
+                  <textarea
+                    ref={textRef}
+                    placeholder={user ? "Share your thoughts, ask a question, or give feedback…" : "Login to post in this thread"}
+                    value={newPost}
+                    onChange={e => setNewPost(e.target.value)}
+                    disabled={!user}
+                  />
+                  <div className="comm-compose-footer">
+                    <span style={{fontSize:"0.8rem",color:"var(--muted)"}}>{newPost.length}/1000</span>
+                    {user
+                      ? <button className="btn-post" onClick={submitPost} disabled={posting||!newPost.trim()}>{posting?"Posting…":"Post"}</button>
+                      : <button className="btn-post" onClick={() => go("login")}>Login to Post</button>
+                    }
+                  </div>
+                </div>
+
+                {/* POSTS */}
+                {loading ? (
+                  [1,2,3].map(i => (
+                    <div key={i} className="comm-post">
+                      <div className="skel" style={{height:"12px",width:"30%",marginBottom:"0.5rem"}}/>
+                      <div className="skel" style={{height:"14px",width:"90%"}}/>
+                      <div className="skel" style={{height:"14px",width:"70%"}}/>
+                    </div>
+                  ))
+                ) : posts.length === 0 ? (
+                  <div className="empty" style={{background:"white",borderRadius:"14px",boxShadow:"var(--shadow)"}}>
+                    No posts yet in this thread. Be the first to post!
+                  </div>
+                ) : posts.map(post => (
+                  <div key={post.id} className="comm-post">
+                    <div className="comm-post-header">
+                      <div className="comm-avatar">
+                        {post.author_avatar
+                          ? <img src={post.author_avatar} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                          : "👤"
+                        }
+                      </div>
+                      <div>
+                        <div className="comm-author">{post.author_name}</div>
+                        <div className="comm-time">{timeAgo(post.created_at)}</div>
+                      </div>
+                      <span className="comm-tag">{activeThread?.icon} {activeThread?.label.split(" ").slice(1).join(" ")}</span>
+                    </div>
+                    <div className="comm-body">{post.body}</div>
+                    <div className="comm-actions">
+  <button className="comm-action-btn" onClick={() => likePost(post)}>
+    ❤️ {post.likes||0}
+  </button>
+  <button className="comm-action-btn" onClick={() => loadReplies(post.id)}>
+    💬 {replyTo===post.id?"Hide":"Reply"} {replies[post.id]?.length > 0 ? `(${replies[post.id].length})` : ""}
+  </button>
+  {user && post.author_name === (profile?.full_name || user.split("@")[0]) && (
+    <button className="comm-action-btn" style={{color:"var(--danger)"}} onClick={async () => {
+      await supabase.from("posts").delete().eq("id", post.id);
+      setPosts(ps => ps.filter(p => p.id !== post.id));
+    }}>
+      🗑 Delete
+    </button>
+  )}
+</div>
+
+                    {replyTo===post.id && (
+                      <div className="comm-replies">
+                        {(replies[post.id]||[]).map(r => (
+                         <div key={r.id} className="comm-reply">
+  <div className="comm-avatar" style={{width:"30px",height:"30px",fontSize:"0.85rem"}}>
+    {r.author_avatar ? <img src={r.author_avatar} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "👤"}
+  </div>
+  <div className="comm-reply-body">
+    <div className="comm-reply-author" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <span>{r.author_name} <span style={{fontWeight:400,color:"var(--muted)",fontSize:"0.75rem"}}>{timeAgo(r.created_at)}</span></span>
+      {user && r.author_name === (profile?.full_name || user.split("@")[0]) && (
+        <button style={{color:"var(--danger)",fontSize:"0.75rem"}} onClick={async () => {
+          await supabase.from("replies").delete().eq("id", r.id);
+          setReplies(prev => ({...prev, [post.id]: prev[post.id].filter(x => x.id !== r.id)}));
+        }}>🗑</button>
+      )}
+    </div>
+    {r.body}
+  </div>
+</div>
+ ))}
+                        {user && (
+                          <div style={{display:"flex",gap:"0.75rem",alignItems:"flex-start",marginTop:"0.5rem"}}>
+                            <div className="comm-avatar" style={{width:"30px",height:"30px",fontSize:"0.85rem",flexShrink:0}}>
+                              {profile?.avatar_url ? <img src={profile.avatar_url} style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "👤"}
+                            </div>
+                            <div style={{flex:1}}>
+                              <input
+                                style={{width:"100%",padding:"0.5rem 0.75rem",border:"1.5px solid var(--border)",borderRadius:"8px",fontSize:"0.86rem",outline:"none",fontFamily:"inherit"}}
+                                placeholder="Write a reply…"
+                                value={replyText}
+                                onChange={e => setReplyText(e.target.value)}
+                                onKeyDown={e => { if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitReply(post.id);}}}
+                              />
+                            </div>
+                            <button className="btn-post" style={{flexShrink:0}} onClick={() => submitReply(post.id)} disabled={!replyText.trim()}>Reply</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    // ─── FOOTER ───────────────────────────────────────────────────────────
+    function Footer({ go }) {
+      return (
+        <footer className="footer">
+          <div className="footer-inner">
+            <div className="footer-brand">
+              <div className="footer-logo">⚖ Lex<span>Notes</span></div>
+              <div className="footer-tagline">Built for India's next generation of lawyers.</div>
+            </div>
+            <div className="footer-links">
+              <button className="flink" onClick={() => go("browse")}>Browse Notes</button>
+              <button className="flink" onClick={() => go("sell")}>Sell Notes</button>
+              <button className="flink" onClick={() => go("sellers")}>Sellers</button>
+              <button className="flink" onClick={() => go("community")}>Community</button>
+              <button className="flink" onClick={() => go("login")}>Login</button>
+              <button className="flink" onClick={() => go("register")}>Sign Up</button>
+            </div>
+          </div>
+          <div className="footer-copy">© 2026 LexNotes Marketplace · All rights reserved</div>
+        </footer>
+      );
+    }
+
+    // ─── APP ROOT ──────────────────────────────────────────────────────────
+    function App() {
+      const [page, setPage]           = useState("home");
+      const [ctx,  setCtx]            = useState({});
+      const [cart, setCart]           = useState([]);
+      const [cartOpen, setCartOpen]   = useState(false);
+      const [user, setUser]           = useState(null);
+      const [toast, setToast]         = useState(null);
+      const [notes, setNotes]         = useState([]);
+      const [notesLoading, setNL]     = useState(true);
+      const [notesError,   setNE]     = useState(null);
+      const [purchases, setPurchases] = useState([]);
+
+      const fetchNotes = async () => {
+        setNL(true); setNE(null);
+        const { data, error } = await supabase
+          .from("notes")
+          .select("*, profiles(full_name, college, avatar_url)")
+          .order("created_at", { ascending: false });
+        if (error) { setNE(error.message); } else { setNotes(data || []); }
+        setNL(false);
+      };
+
+      const fetchPurchases = async (uid) => {
+        if (!uid) { setPurchases([]); return; }
+        const { data } = await supabase.from("purchases").select("*").eq("buyer_id", uid);
+        setPurchases(data || []);
+      };
+
+      useEffect(() => {
+        // Restore session on load
+        supabase.auth.getSession().then(({ data }) => {
+          if (data.session) {
+            setUser(data.session.user.email);
+            fetchPurchases(data.session.user.id);
+          }
+        });
+        // Watch auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+          setUser(session ? session.user.email : null);
+          fetchPurchases(session?.user?.id || null);
+        });
+        // Load notes
+        fetchNotes();
+        // Realtime notes refresh
+        const channel = supabase
+          .channel("notes-realtime")
+          .on("postgres_changes", { event:"*", schema:"public", table:"notes" }, fetchNotes)
+          .subscribe();
+
+        return () => { subscription.unsubscribe(); supabase.removeChannel(channel); };
+      }, []);
+
+      const go = (p, c = {}) => { setPage(p); setCtx(c); window.scrollTo({top:0,behavior:"smooth"}); };
+
+      const showToast = (msg, type="success") => {
+        setToast({msg,type});
+        setTimeout(() => setToast(null), 3500);
+      };
+
+      const addToCart = note => {
+        if (cart.find(c => c.id===note.id)) { showToast("Already in cart!","info"); return; }
+        setCart(p => [...p,note]);
+        showToast(`"${(note.title||"Note").slice(0,28)}…" added to cart`);
+      };
+
+      const removeFromCart = id => setCart(p => p.filter(c => c.id!==id));
+
+      const logout = async () => {
+        await supabase.auth.signOut();
+        setUser(null); setPurchases([]);
+        showToast("Logged out successfully.");
+        go("home");
+      };
+
+      const checkout = async () => {
+        const { data: { user: u } } = await supabase.auth.getUser();
+        if (!u) { setCartOpen(false); go("login"); return; }
+        const rows = cart.map(n => ({ buyer_id:u.id, note_id:n.id, amount:n.price }));
+        const { error } = await supabase.from("purchases").insert(rows);
+        if (error) { showToast("Checkout failed: "+error.message,"error"); return; }
+        await fetchPurchases(u.id);
+        setCart([]); setCartOpen(false);
+        showToast("Purchase successful! Check My Library.");
+        go("library");
+      };
+
+      const np = { notes, notesLoading, notesError };
+
+      return (
+        <div>
+          <Navbar page={page} go={go} cart={cart} cartOpen={cartOpen} setCartOpen={setCartOpen} user={user} logout={logout}/>
+          {cartOpen && <CartDrawer cart={cart} remove={removeFromCart} close={() => setCartOpen(false)} go={go} onCheckout={checkout}/>}
+          {toast    && <Toast msg={toast.msg} type={toast.type}/>}
+
+          {page==="home"      && <Home       go={go} addToCart={addToCart} {...np} purchases={purchases}/>}
+          {page==="browse"    && <Browse     go={go} addToCart={addToCart} {...np} purchases={purchases}/>}
+          {page==="subject"   && <SubjectPage subject={ctx.subject} go={go} addToCart={addToCart} {...np} purchases={purchases}/>}
+          {page==="sell"      && <Sell       user={user} go={go} showToast={showToast}/>}
+          {page==="profile"   && <Profile    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases}/>}
+          {page==="library"   && <Library    go={go} notes={notes} purchases={purchases} addToCart={addToCart}/>}
+          {page==="sellers"   && <Sellers    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases}/>}
+          {page==="community" && <Community  user={user} go={go}/>}
+          {page==="login"     && <Auth       mode="login"    setUser={setUser} go={go} showToast={showToast}/>}
+          {page==="register"  && <Auth       mode="register" setUser={setUser} go={go} showToast={showToast}/>}
+
+          <Footer go={go}/>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
