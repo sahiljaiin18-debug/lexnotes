@@ -383,6 +383,16 @@
     .preview-link { color: var(--sienna); font-weight: 600; font-size: 0.76rem; text-decoration: underline; margin-left: 0.75rem; white-space: nowrap; }
     .status-actions { display:flex; gap:0.35rem; flex-wrap:wrap; }
 
+    .preview-modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.62); z-index: 650; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .preview-modal { width: min(1100px, 96vw); height: min(86vh, 820px); background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+    .preview-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--parchment); }
+    .preview-modal-title { font-family: 'Cormorant Garamond', serif; font-size: 1.25rem; color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-modal-close { flex: 0 0 auto; padding: 0.35rem 0.75rem; border: 1px solid var(--border2); color: var(--ink); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .preview-modal-close:hover { background: var(--ink); color: white; border-color: var(--ink); }
+    .preview-frame { width: 100%; height: 100%; border: 0; background: white; }
+    .preview-fallback { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--stone); background: var(--white); }
+    .preview-fallback a { color: var(--sienna); font-weight: 600; text-decoration: underline; }
+
     @media (max-width: 900px) {
       .nav-inner { padding: 0 1rem; gap: 0.6rem; }
       .nav-right { gap: 0.45rem; min-width: 0; }
@@ -549,8 +559,36 @@
       );
     }
 
+
+    function getPreviewSrc(url) {
+      if (!url) return "";
+      const clean = String(url).split("?")[0].toLowerCase();
+      if (clean.endsWith(".docx") || clean.endsWith(".doc")) {
+        return "https://docs.google.com/gview?embedded=1&url=" + encodeURIComponent(url);
+      }
+      return url;
+    }
+
+    function PreviewModal({ preview, onClose }) {
+      if (!preview) return null;
+      return (
+        <div className="preview-modal-overlay" onClick={onClose}>
+          <div className="preview-modal" onClick={e => e.stopPropagation()}>
+            <div className="preview-modal-head">
+              <div className="preview-modal-title">{preview.title || "Document Preview"}</div>
+              <button className="preview-modal-close" onClick={onClose}>Close</button>
+            </div>
+            <iframe className="preview-frame" src={getPreviewSrc(preview.url)} title={preview.title || "Document Preview"} />
+            <div className="preview-fallback">
+              If the preview does not load, <a href={preview.url} target="_blank" rel="noreferrer">open the preview in a new tab</a>.
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ── NOTE CARD ────────────────────────────────────────────────────────
-    function NoteCard({ note, addToCart, purchases = [] }) {
+    function NoteCard({ note, addToCart, purchases = [], openPreview }) {
       const purchased = purchases.find(p => p.note_id === note.id);
       return (
         <div className="ncard">
@@ -562,7 +600,7 @@
           </div>
           <div className="ndetails">
             {note.pages && <span>{note.pages} pages</span>}
-            {note.preview_url && <a className="preview-link" href={note.preview_url} target="_blank" rel="noreferrer">Preview</a>}
+            {note.preview_url && <button type="button" className="preview-link" onClick={() => openPreview?.(note.preview_url, note.title)}>Preview</button>}
             {note.file_url && (
               purchased
                 ? <a href={note.file_url} target="_blank" rel="noreferrer" style={{color:"var(--success)",fontWeight:600,fontSize:"0.76rem",textDecoration:"underline",marginLeft:"0.75rem"}}>View File</a>
@@ -623,7 +661,7 @@
     }
 
     // ── HOME ─────────────────────────────────────────────────────────────
-    function Home({ go, addToCart, notes, notesLoading, notesError, purchases }) {
+    function Home({ go, addToCart, notes, notesLoading, notesError, purchases, openPreview }) {
       return (
         <>
           {/* HERO */}
@@ -678,7 +716,7 @@
                 ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
                 : notes.filter(n => n.is_approved !== false).length === 0 && !notesError
                   ? <div className="empty" style={{color:"rgba(255,255,255,0.3)"}}>No notes yet — add rows from the Supabase Table Editor.</div>
-                  : <div className="notes-grid">{notes.filter(n => n.is_approved !== false).slice(0,6).map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+                  : <div className="notes-grid">{notes.filter(n => n.is_approved !== false).slice(0,6).map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
               }
             </div>
           </div>
@@ -739,7 +777,7 @@
     }
 
     // ── BROWSE ───────────────────────────────────────────────────────────
-    function Browse({ go, addToCart, notes, notesLoading, notesError, purchases }) {
+    function Browse({ go, addToCart, notes, notesLoading, notesError, purchases, openPreview }) {
       const [q,    setQ]    = useState("");
       const [subj, setSubj] = useState("all");
       const [sort, setSort] = useState("default");
@@ -793,7 +831,7 @@
               ? <div className="notes-grid">{[1,2,3,4].map(i => <SkeletonCard key={i}/>)}</div>
               : shown.length === 0
                 ? <div className="empty">No notes found. Try a different search or filter.</div>
-                : <div className="notes-grid">{shown.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+                : <div className="notes-grid">{shown.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
             }
           </div>
         </>
@@ -801,7 +839,7 @@
     }
 
     // ── SUBJECT PAGE ─────────────────────────────────────────────────────
-    function SubjectPage({ subject, go, addToCart, notes, notesLoading, purchases }) {
+    function SubjectPage({ subject, go, addToCart, notes, notesLoading, purchases, openPreview }) {
       if (!subject) { go("browse"); return null; }
       const filtered = notes.filter(n => n.is_approved !== false && subjectMatch(n.subject, subject));
       return (
@@ -817,7 +855,7 @@
           {notesLoading
             ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
             : filtered.length > 0
-              ? <div className="notes-grid">{filtered.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+              ? <div className="notes-grid">{filtered.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
               : <div className="empty">No notes for this subject yet — be the first to upload.</div>
           }
         </div>
@@ -1183,7 +1221,7 @@
     }
 
     // ── PROFILE ──────────────────────────────────────────────────────────
-    function Profile({ go, addToCart, notes, notesLoading, purchases }) {
+    function Profile({ go, addToCart, notes, notesLoading, purchases, openPreview }) {
       const [profile, setProfile]           = useState(null);
       const [editing, setEditing]           = useState(false);
       const [activeTab, setActiveTab]       = useState("profile");
@@ -1292,7 +1330,7 @@
                 ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
                 : myNotes.length === 0
                   ? <div className="empty">You haven't uploaded any notes yet. <button className="link-btn" onClick={() => go("sell")}>Upload now</button></div>
-                  : <div className="notes-grid">{myNotes.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+                  : <div className="notes-grid">{myNotes.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
               }
             </>
           )}
@@ -1349,7 +1387,7 @@
     }
 
     // ── SELLERS ──────────────────────────────────────────────────────────
-    function Sellers({ go, addToCart, notes, notesLoading, purchases }) {
+    function Sellers({ go, addToCart, notes, notesLoading, purchases, openPreview }) {
       const [sellers, setSellers]             = useState([]);
       const [loading, setLoading]             = useState(true);
       const [q, setQ]                         = useState("");
@@ -1403,7 +1441,7 @@
               ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
               : sellerNotes.length === 0
                 ? <div className="empty">This seller hasn't uploaded any notes yet.</div>
-                : <div className="notes-grid">{sellerNotes.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases}/>)}</div>
+                : <div className="notes-grid">{sellerNotes.map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
             }
           </div>
         );
@@ -1662,7 +1700,7 @@
       );
     }
 
-    function AdminPanel({ go, showToast, refreshNotes }) {
+    function AdminPanel({ go, showToast, refreshNotes, openPreview }) {
       const [tab, setTab]         = useState("overview");
       const [notes, setNotes]     = useState([]);
       const [users, setUsers]     = useState([]);
@@ -1815,10 +1853,10 @@
                           <td><span className={`badge ${n.is_approved !== false ? "badge-approved" : "badge-pending"}`}>{n.is_approved !== false ? "Approved" : "Pending / Rejected"}</span></td>
                           <td>
                             <div className="status-actions">
-                              {n.preview_url && <a href={n.preview_url} target="_blank" rel="noreferrer"><button className="admin-action-btn">Preview</button></a>}
+                              {n.preview_url && <button className="admin-action-btn" onClick={() => openPreview?.(n.preview_url, n.title)}>Preview</button>}
                               {n.file_url && <a href={n.file_url} target="_blank" rel="noreferrer"><button className="admin-action-btn">Full</button></a>}
-                              {n.is_approved === false && <button className="admin-action-btn success" onClick={() => approveNote(n.id)}>Approve</button>}
-                              {n.is_approved !== false && <button className="admin-action-btn" onClick={() => rejectNote(n.id)}>Reject</button>}
+                              <button className="admin-action-btn success" onClick={() => approveNote(n.id)}>Approve</button>
+                              <button className="admin-action-btn" onClick={() => rejectNote(n.id)}>Reject</button>
                               <button className="admin-action-btn danger" onClick={() => deleteNote(n.id)}>Delete</button>
                             </div>
                           </td>
@@ -1935,6 +1973,7 @@
       const [purchases, setPurchases] = useState([]);
       const [isAdmin, setIsAdmin]     = useState(false);
       const [adminAuthed, setAdminAuthed] = useState(false);
+      const [previewModal, setPreviewModal] = useState(null);
 
       const fetchNotes = async () => {
         setNL(true); setNE(null);
@@ -1977,6 +2016,11 @@
 
       const go = (p, c = {}) => { setPage(p); setCtx(c); window.scrollTo({top:0,behavior:"smooth"}); };
 
+      const openPreview = (url, title = "Document Preview") => {
+        if (!url) return;
+        setPreviewModal({ url, title });
+      };
+
       const showToast = (msg, type="success") => {
         setToast({msg,type});
         setTimeout(() => setToast(null), 3500);
@@ -2015,20 +2059,21 @@
         <div>
           <Navbar page={page} go={go} cart={cart} setCartOpen={setCartOpen} user={user} logout={logout} isAdmin={isAdmin}/>
           {cartOpen && <CartDrawer cart={cart} remove={removeFromCart} close={() => setCartOpen(false)} go={go} onCheckout={checkout}/>}
-          {toast    && <Toast msg={toast.msg} type={toast.type}/>}
+          {toast    && <Toast msg={toast.msg} type={toast.type}/>} 
+          <PreviewModal preview={previewModal} onClose={() => setPreviewModal(null)}/>
 
-          {page==="home"      && <Home       go={go} addToCart={addToCart} {...np} purchases={purchases}/>}
-          {page==="browse"    && <Browse     go={go} addToCart={addToCart} {...np} purchases={purchases}/>}
-          {page==="subject"   && <SubjectPage subject={ctx.subject} go={go} addToCart={addToCart} {...np} purchases={purchases}/>}
+          {page==="home"      && <Home       go={go} addToCart={addToCart} {...np} purchases={purchases} openPreview={openPreview}/>}
+          {page==="browse"    && <Browse     go={go} addToCart={addToCart} {...np} purchases={purchases} openPreview={openPreview}/>}
+          {page==="subject"   && <SubjectPage subject={ctx.subject} go={go} addToCart={addToCart} {...np} purchases={purchases} openPreview={openPreview}/>}
           {page==="sell"      && <Sell       user={user} go={go} showToast={showToast}/>}
-          {page==="profile"   && <Profile    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases}/>}
+          {page==="profile"   && <Profile    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases} openPreview={openPreview}/>}
           {page==="library"   && <Library    go={go} notes={notes} purchases={purchases} addToCart={addToCart}/>}
-          {page==="sellers"   && <Sellers    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases}/>}
+          {page==="sellers"   && <Sellers    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases} openPreview={openPreview}/>}
           {page==="community" && <Community  user={user} go={go}/>}
           {page==="login"     && <Auth       mode="login"    setUser={setUser} go={go} showToast={showToast}/>}
           {page==="register"  && <Auth       mode="register" setUser={setUser} go={go} showToast={showToast}/>}
           {page==="admin"     && (adminAuthed
-            ? <AdminPanel go={go} showToast={showToast} refreshNotes={fetchNotes}/>
+            ? <AdminPanel go={go} showToast={showToast} refreshNotes={fetchNotes} openPreview={openPreview}/>
             : <AdminLogin onLogin={() => setAdminAuthed(true)} showToast={showToast}/>
           )}
 
