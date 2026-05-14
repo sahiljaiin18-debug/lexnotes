@@ -9,7 +9,13 @@
     {
       "source": "/(.*)",
       "destination": "https://lexnotes-waitlist.vercel.app",
-      "permanent": false
+      "permanent": false,
+      "has": [
+        {
+          "type": "host",
+          "value": "lexnotes-seven.vercel.app"
+        }
+      ]
     }
   ]
 }
