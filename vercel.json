@@ -2,8 +2,7 @@
   "rewrites": [
     {
       "source": "/subjects/:path*",
-      "destination": "/
-      index.html"
+      "destination": "/index.html"
     }
   ]
 }
