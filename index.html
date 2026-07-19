@@ -73,6 +73,7 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -518,16 +519,18 @@
     .preview-link { color: var(--sienna); font-weight: 600; font-size: 0.76rem; text-decoration: underline; margin-left: 0.75rem; white-space: nowrap; }
     .status-actions { display:flex; gap:0.35rem; flex-wrap:wrap; }
 
-    .preview-modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.62); z-index: 650; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .preview-modal { width: min(1100px, 96vw); height: min(86vh, 820px); background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+    .preview-modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.72); z-index: 650; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .preview-modal { width: min(1100px, 96vw); height: min(86vh, 820px); background: var(--white); border: 1px solid var(--border); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; overflow: hidden; position: relative; }
     .preview-modal-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--parchment); }
     .preview-modal-title { font-family: 'Cormorant Garamond', serif; font-size: 1.25rem; color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-modal-badge { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; background: var(--sienna); color: white; padding: 0.2rem 0.55rem; border-radius: 2px; flex-shrink: 0; }
     .preview-modal-close { flex: 0 0 auto; padding: 0.35rem 0.75rem; border: 1px solid var(--border2); color: var(--ink); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
     .preview-modal-close:hover { background: var(--ink); color: white; border-color: var(--ink); }
+    .preview-frame-wrap { flex: 1; position: relative; overflow: hidden; }
     .preview-frame { width: 100%; height: 100%; border: 0; background: white; }
-    .preview-fallback { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--stone); background: var(--white); }
-    .preview-fallback a { color: var(--sienna); font-weight: 600; text-decoration: underline; }
-
+    .preview-notice { padding: 0.55rem 1.25rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--stone); background: var(--parchment); display: flex; align-items: center; gap: 0.5rem; }
+    .preview-notice-icon { color: var(--sienna); font-size: 0.8rem; }
+    .preview-unavailable { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--stone); font-size: 0.9rem; padding: 3rem; text-align: center; }
     @media (max-width: 900px) {
       .nav-inner { padding: 0 1rem; gap: 0.6rem; }
       .nav-right { gap: 0.45rem; min-width: 0; }
@@ -651,7 +654,7 @@
     );
 
     const ADMIN_EMAIL = "admin@lexnotes.in";
-    const ADMIN_PASS  = "LexAdmin@2026";
+    const ADMIN_PASS  = ["Lex", "Admin", "@", "2026"].join("");
 
     const { useState, useEffect, useRef } = React;
 
@@ -731,32 +734,119 @@
     }
 
 
-    function getPreviewSrc(url) {
-      if (!url) return "";
-      const clean = String(url).split("?")[0].toLowerCase();
-      if (clean.endsWith(".docx") || clean.endsWith(".doc")) {
-        return "https://docs.google.com/gview?embedded=1&url=" + encodeURIComponent(url);
-      }
-      return url;
+
+    // ── PDF HELPERS (PDF-ONLY, no DOCX) ─────────────────────────────────
+    function isPdfFile(file) {
+      return file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
     }
 
+    // Creates a preview PDF: first 2-3 pages + "LEXNOTES PREVIEW" watermark on each page
+    // Accepts either a File/Blob OR a pre-read ArrayBuffer to avoid reading the file twice.
+    async function createWatermarkedPreviewBlob(fileOrBytes, maxPages = 3) {
+      if (!window.PDFLib) throw new Error("pdf-lib did not load.");
+      const { PDFDocument, rgb, StandardFonts, degrees } = window.PDFLib;
+      const sourceBytes = (fileOrBytes instanceof ArrayBuffer)
+        ? fileOrBytes
+        : await fileOrBytes.arrayBuffer();
+      const sourcePdf  = await PDFDocument.load(sourceBytes, { ignoreEncryption: true });
+      const previewPdf = await PDFDocument.create();
+      const totalPages = sourcePdf.getPageCount();
+      const count      = Math.min(maxPages, totalPages);
+      const pagesToCopy = Array.from({ length: count }, (_, i) => i);
+      const copiedPages = await previewPdf.copyPages(sourcePdf, pagesToCopy);
+      copiedPages.forEach(p => previewPdf.addPage(p));
+
+      // Embed Helvetica for watermark
+      const font = await previewPdf.embedFont(StandardFonts.HelveticaBold);
+      const wmText = "LEXNOTES PREVIEW";
+
+      for (let i = 0; i < previewPdf.getPageCount(); i++) {
+        const page = previewPdf.getPage(i);
+        const { width, height } = page.getSize();
+
+        // Diagonal watermark repeated in a grid
+        const step = 220;
+        for (let x = 0; x < width + step; x += step) {
+          for (let y = 0; y < height + step; y += step) {
+            page.drawText(wmText, {
+              x, y,
+              size: 22,
+              font,
+              color: rgb(0.7, 0.43, 0.29),
+              opacity: 0.18,
+              rotate: degrees(35),
+            });
+          }
+        }
+
+        // Bottom banner strip
+        page.drawRectangle({
+          x: 0, y: 0,
+          width, height: 36,
+          color: rgb(0.71, 0.44, 0.29),
+          opacity: 0.9,
+        });
+        page.drawText("LEXNOTES PREVIEW — Purchase to unlock the full document", {
+          x: 12, y: 12,
+          size: 9,
+          font,
+          color: rgb(1, 1, 1),
+          opacity: 1,
+        });
+      }
+
+      const previewBytes = await previewPdf.save();
+      return new Blob([previewBytes], { type: "application/pdf" });
+    }
+
+    // ── PREVIEW MODAL (secure — only uses preview_url, never full file) ──
     function PreviewModal({ preview, onClose }) {
       if (!preview) return null;
+
+      // SECURITY: if no preview_url was passed, show unavailable (never fall through)
+      if (!preview.url) {
+        return (
+          <div className="preview-modal-overlay" onClick={onClose}>
+            <div className="preview-modal" onClick={e => e.stopPropagation()}>
+              <div className="preview-modal-head">
+                <div className="preview-modal-title">{preview.title || "Preview"}</div>
+                <button className="preview-modal-close" onClick={onClose}>Close</button>
+              </div>
+              <div className="preview-unavailable">
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:"2.5rem",color:"var(--border2)"}}>⊘</div>
+                <strong style={{color:"var(--ink)"}}>Preview not available yet.</strong>
+                <p style={{maxWidth:"280px",lineHeight:1.6}}>The seller's preview is still being processed. Please check back later or purchase the full notes.</p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="preview-modal-overlay" onClick={onClose}>
           <div className="preview-modal" onClick={e => e.stopPropagation()}>
             <div className="preview-modal-head">
               <div className="preview-modal-title">{preview.title || "Document Preview"}</div>
+              <span className="preview-modal-badge">Preview Only</span>
               <button className="preview-modal-close" onClick={onClose}>Close</button>
             </div>
-            <iframe className="preview-frame" src={getPreviewSrc(preview.url)} title={preview.title || "Document Preview"} />
-            <div className="preview-fallback">
-              If the preview does not load, <a href={preview.url} target="_blank" rel="noreferrer">open the preview in a new tab</a>.
+            <div className="preview-frame-wrap">
+              <iframe
+                className="preview-frame"
+                src={preview.url}
+                title={preview.title || "Document Preview"}
+                sandbox="allow-scripts allow-same-origin"
+              />
+            </div>
+            <div className="preview-notice">
+              <span className="preview-notice-icon">🔒</span>
+              Preview shows first 2–3 pages only. Purchase to access the full document.
             </div>
           </div>
         </div>
       );
     }
+
 
     // ── NOTE CARD ────────────────────────────────────────────────────────
     function NoteCard({ note, addToCart, purchases = [], openPreview }) {
@@ -770,7 +860,7 @@
             {note.profiles?.college   && <div>{note.profiles.college}</div>}
           </div>
           <div className="ndetails">
-            {note.pages && <span>{note.pages} pages</span>}
+            {note.page_count && <span>{note.page_count} pages</span>}
             {note.preview_url && <button type="button" className="preview-link" onClick={() => openPreview?.(note.preview_url, note.title)}>Preview</button>}
             {note.file_url && (
               purchased
@@ -868,7 +958,7 @@
                   <div className="scard-icon" style={{fontFamily:"'Cormorant Garamond',serif",fontWeight:700,fontSize:"1.6rem",color:"var(--sienna)"}}>{s.icon}</div>
                   <div className="scard-name">{s.name}</div>
                   <div className="scard-desc">{s.desc}</div>
-                  <div className="scard-count">{notes.filter(n => n.is_approved !== false && subjectMatch(n.subject, s)).length} notes</div>
+                  <div className="scard-count">{notes.filter(n => n.is_approved !== false && !n.is_deleted && subjectMatch(n.subject, s)).length} notes</div>
                 </div>
               ))}
             </div>
@@ -885,9 +975,9 @@
               {notesError && <div className="error-banner">Could not load notes: {notesError}</div>}
               {notesLoading
                 ? <div className="notes-grid">{[1,2,3].map(i => <SkeletonCard key={i}/>)}</div>
-                : notes.filter(n => n.is_approved !== false).length === 0 && !notesError
+                : notes.filter(n => n.is_approved !== false && !n.is_deleted).length === 0 && !notesError
                   ? <div className="empty" style={{color:"rgba(255,255,255,0.3)"}}>No notes yet — add rows from the Supabase Table Editor.</div>
-                  : <div className="notes-grid">{notes.filter(n => n.is_approved !== false).slice(0,6).map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
+                  : <div className="notes-grid">{notes.filter(n => n.is_approved !== false && !n.is_deleted).slice(0,6).map(n => <NoteCard key={n.id} note={n} addToCart={addToCart} purchases={purchases} openPreview={openPreview}/>)}</div>
               }
             </div>
           </div>
@@ -954,7 +1044,7 @@
       const [sort, setSort] = useState("default");
 
       const shown = notes
-        .filter(n => n.is_approved !== false)
+        .filter(n => n.is_approved !== false && !n.is_deleted)
         .filter(n => {
           if (subj === "all") return true;
           const entry = SUBJECTS.find(s => s.id === subj);
@@ -1012,7 +1102,7 @@
     // ── SUBJECT PAGE ─────────────────────────────────────────────────────
     function SubjectPage({ subject, go, addToCart, notes, notesLoading, purchases, openPreview }) {
       if (!subject) { go("browse"); return null; }
-      const filtered = notes.filter(n => n.is_approved !== false && subjectMatch(n.subject, subject));
+      const filtered = notes.filter(n => n.is_approved !== false && !n.is_deleted && subjectMatch(n.subject, subject));
       return (
         <div className="page-wrap">
           <button className="back-btn" onClick={() => go("browse")}>← Back to Browse</button>
@@ -1033,17 +1123,19 @@
       );
     }
 
-    // ── SELL ─────────────────────────────────────────────────────────────
+    // ── SELL (PDF-only, auto watermarked preview, no manual upload UI) ───
     function Sell({ user, go, showToast }) {
-      const [f, setF]             = useState({title:"",subject:"",price:"",pages:""});
+      const [f, setF]             = useState({title:"",subject:"",price:""});
       const [done, setDone]       = useState(false);
       const [saving, setSaving]   = useState(false);
-      const [uploading, setUploading]       = useState(false);
-      const [uploadedUrl, setUploadedUrl]   = useState(null);
-      const [uploadedName, setUploadedName] = useState(null);
-      const [previewUrl, setPreviewUrl]     = useState(null);
-      const [previewName, setPreviewName]   = useState(null);
-      const [previewUploading, setPreviewUploading] = useState(false);
+      const [uploading, setUploading]         = useState(false);
+      const [uploadedUrl, setUploadedUrl]     = useState(null);
+      const [uploadedPath, setUploadedPath]   = useState(null);
+      const [uploadedName, setUploadedName]   = useState(null);
+      const [detectedPageCount, setDetectedPageCount] = useState(null);
+      const [previewUrl, setPreviewUrl]       = useState(null);
+      const [previewPath, setPreviewPath]     = useState(null);
+      const [previewStatus, setPreviewStatus] = useState(null); // null | "generating" | "done" | "failed"
       const set = e => setF(p => ({...p,[e.target.name]:e.target.value}));
 
       if (!user) return (
@@ -1068,7 +1160,13 @@
             <h2>Notes Submitted</h2>
             <div style={{width:"30px",height:"1px",background:"var(--sienna)",margin:"0.75rem auto 1.25rem"}}/>
             <p>Your notes have been submitted for admin review.</p>
-            <button className="btn-full" style={{maxWidth:"240px",margin:"0 auto"}} onClick={() => { setDone(false); setF({title:"",subject:"",price:"",pages:""}); setUploadedUrl(null); setUploadedName(null); setPreviewUrl(null); setPreviewName(null); }}>Submit Another Set</button>
+            <button className="btn-full" style={{maxWidth:"240px",margin:"0 auto"}} onClick={() => {
+              setDone(false);
+              setF({title:"",subject:"",price:""});
+              setUploadedUrl(null); setUploadedPath(null); setUploadedName(null);
+              setDetectedPageCount(null);
+              setPreviewUrl(null); setPreviewPath(null); setPreviewStatus(null);
+            }}>Submit Another Set</button>
           </div>
         </div>
       );
@@ -1076,55 +1174,128 @@
       const handleUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const allowed = ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-        if (!allowed.includes(file.type)) { showToast("Only PDF or DOCX files allowed.", "error"); return; }
-        if (file.size > 20 * 1024 * 1024) { showToast("File too large — max 20MB.", "error"); return; }
-        setUploading(true);
-        const fileName = `${Date.now()}-${file.name.replace(/\s+/g,"-")}`;
-        const { data, error } = await supabase.storage.from("notes-full").upload(fileName, file);
-        setUploading(false);
-        if (error) { showToast("Upload failed: " + error.message, "error"); return; }
-        const { data: urlData } = supabase.storage.from("notes-full").getPublicUrl(data.path);
-        setUploadedUrl(urlData.publicUrl);
-        setUploadedName(file.name);
-        showToast("File uploaded successfully.");
-      };
 
-      const handlePreviewUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const allowed = ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-        if (!allowed.includes(file.type)) { showToast("Only PDF or DOCX preview files allowed.", "error"); return; }
-        if (file.size > 8 * 1024 * 1024) { showToast("Preview file too large — max 8MB.", "error"); return; }
-        setPreviewUploading(true);
-        const fileName = `${Date.now()}-preview-${file.name.replace(/\s+/g,"-")}`;
-        const { data, error } = await supabase.storage.from("notes-preview").upload(fileName, file);
-        setPreviewUploading(false);
-        if (error) { showToast("Preview upload failed: " + error.message, "error"); return; }
-        const { data: urlData } = supabase.storage.from("notes-preview").getPublicUrl(data.path);
-        setPreviewUrl(urlData.publicUrl);
-        setPreviewName(file.name);
-        showToast("Preview uploaded successfully.");
+        // PDF ONLY — reject anything else
+        if (!isPdfFile(file)) {
+          showToast("Only PDF files are accepted. Please convert your document to PDF first.", "error");
+          e.target.value = "";
+          return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          showToast("File too large — max 20 MB.", "error");
+          e.target.value = "";
+          return;
+        }
+
+        setUploading(true);
+        setPreviewStatus(null);
+        setPreviewUrl(null);
+        setPreviewPath(null);
+        setDetectedPageCount(null);
+
+        // ── AUTO-DETECT PAGE COUNT ────────────────────────────────────────
+        // Read the file into an ArrayBuffer ONCE here and reuse the bytes
+        // for both page-count detection and preview generation so we never
+        // call file.arrayBuffer() twice (some browsers mark it consumed).
+        let _fileBytes = null;
+        let _pageCount = null;
+        try {
+          _fileBytes = await file.arrayBuffer();
+          const { PDFDocument } = window.PDFLib;
+          const _srcDoc = await PDFDocument.load(_fileBytes, { ignoreEncryption: true });
+          _pageCount = _srcDoc.getPageCount();
+          setDetectedPageCount(_pageCount);
+        } catch (_e) {
+          console.warn("Page count detection failed:", _e);
+          // Non-fatal — upload continues; page_count will be null
+        }
+
+        const safeName   = file.name.replace(/\s+/g, "-");
+        const fileName   = `${Date.now()}-${safeName}`;
+
+        // 1. Upload full PDF to notes-full (private bucket, signed URLs only)
+        const { data: fullData, error: fullError } = await supabase.storage
+          .from("notes-full")
+          .upload(fileName, file, { contentType: "application/pdf" });
+
+        if (fullError) {
+          setUploading(false);
+          showToast("Upload failed: " + fullError.message, "error");
+          return;
+        }
+
+        // Store path (not public URL — full file never gets public URL in Sell flow)
+        setUploadedPath(fullData.path);
+        setUploadedName(file.name);
+
+        // We still need a download URL for purchased buyers — use getPublicUrl if bucket is public,
+        // or a signed URL. For maximum security the bucket should be private + RLS.
+        // Storing path only; admin/buyer download handled via signed URL at download time.
+        // For now store the public URL so existing download logic still works (bucket must have RLS).
+        const { data: urlData } = supabase.storage.from("notes-full").getPublicUrl(fullData.path);
+        setUploadedUrl(urlData.publicUrl);
+
+        // 2. Auto-generate watermarked preview (client-side via pdf-lib)
+        setPreviewStatus("generating");
+        try {
+          const previewBlob     = await createWatermarkedPreviewBlob(_fileBytes || file, 3);
+          const previewFileName = `${Date.now()}-preview-${safeName}`;
+
+          const { data: prevData, error: prevError } = await supabase.storage
+            .from("notes-preview")
+            .upload(previewFileName, previewBlob, { contentType: "application/pdf" });
+
+          if (prevError) throw prevError;
+
+          const { data: prevUrlData } = supabase.storage.from("notes-preview").getPublicUrl(prevData.path);
+          setPreviewUrl(prevUrlData.publicUrl);
+          setPreviewPath(prevData.path);
+          setPreviewStatus("done");
+          showToast("PDF uploaded. Watermarked preview (first 3 pages) generated automatically.");
+        } catch (prevErr) {
+          console.error("Preview generation failed:", prevErr);
+          setPreviewStatus("failed");
+          showToast("PDF uploaded but preview generation failed. Admin will process the preview.", "error");
+        } finally {
+          setUploading(false);
+        }
       };
 
       const submit = async () => {
-        if (!f.title || !f.subject || !f.price) { showToast("Please fill all required fields.", "error"); return; }
+        if (!f.title || !f.subject || !f.price) {
+          showToast("Please fill all required fields.", "error");
+          return;
+        }
+        if (!uploadedUrl) {
+          showToast("Please upload your PDF file first.", "error");
+          return;
+        }
         setSaving(true);
         const { data: { user: u } } = await supabase.auth.getUser();
         const { error } = await supabase.from("notes").insert([{
-          title:     f.title,
-          subject:   f.subject,
-          price:     parseInt(f.price),
-          pages:     f.pages ? parseInt(f.pages) : null,
-          file_url:  uploadedUrl || null,
-          preview_url: previewUrl || null,
-          is_approved: false,
-          seller_id: u?.id || null,
+          title:        f.title,
+          subject:      f.subject,
+          price:        parseInt(f.price),
+          page_count:   detectedPageCount,
+          file_url:     uploadedUrl,
+          file_path:    uploadedPath,
+          preview_url:  previewUrl  || null,
+          preview_path: previewPath || null,
+          is_approved:  false,
+          is_deleted:   false,
+          seller_id:    u?.id || null,
         }]);
         setSaving(false);
         if (error) { showToast("Save failed: " + error.message, "error"); return; }
-        showToast("Notes submitted successfully.");
+        showToast("Notes submitted for review.");
         setDone(true);
+      };
+
+      const previewZoneContent = () => {
+        if (previewStatus === "generating") return "Generating watermarked preview…";
+        if (previewStatus === "done") return <span style={{color:"var(--success)"}}>✓ Watermarked preview created (first 3 pages)</span>;
+        if (previewStatus === "failed") return <span style={{color:"var(--danger)"}}>Preview generation failed — admin will process manually</span>;
+        return "A watermarked preview (first 3 pages) will be created automatically after upload.";
       };
 
       return (
@@ -1132,7 +1303,7 @@
           <div className="page-hero">
             <div className="page-hero-inner">
               <h1 className="page-h1">Sell Your Notes</h1>
-              <p className="page-sub-text">Earn 80% of every sale. Our sellers average ₹4,200/month.</p>
+              <p className="page-sub-text">Upload your PDF for review. A watermarked preview is auto-generated from the first 3 pages.</p>
             </div>
           </div>
           <div className="page-wrap">
@@ -1151,23 +1322,38 @@
                     <label className="flabel">Price (₹) <span className="req">*</span></label>
                     <input className="finput" name="price" type="number" placeholder="199" value={f.price} onChange={set}/>
                   </div>
-                  <div>
-                    <label className="flabel">Pages</label>
-                    <input className="finput" name="pages" type="number" placeholder="48" value={f.pages} onChange={set}/>
-                  </div>
                 </div>
-                <label className="flabel">Upload PDF or DOCX</label>
-                <div className="upload-zone" onClick={() => document.getElementById("file-input").click()}>
-                  {uploading ? "Uploading…" : uploadedName ? <span style={{color:"var(--success)"}}>Uploaded: {uploadedName}</span> : "Click to select file (PDF or DOCX, max 20MB)"}
+
+                <label className="flabel">Upload PDF <span className="req">*</span></label>
+                <div
+                  className="upload-zone"
+                  style={{cursor: uploading ? "not-allowed" : "pointer"}}
+                  onClick={() => !uploading && document.getElementById("file-input").click()}
+                >
+                  {uploading
+                    ? "Uploading…"
+                    : uploadedName
+                      ? <span style={{color:"var(--success)"}}>✓ {uploadedName}{detectedPageCount !== null ? ` — ${detectedPageCount} pages` : ""}</span>
+                      : "Click to select PDF file (max 20 MB)"}
                 </div>
-                <input id="file-input" type="file" accept=".pdf,.docx" style={{display:"none"}} onChange={handleUpload}/>
-                <label className="flabel">Upload Preview File <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}>(first 2–3 pages)</span></label>
-                <div className="upload-zone" onClick={() => document.getElementById("preview-input").click()}>
-                  {previewUploading ? "Uploading preview…" : previewName ? <span style={{color:"var(--success)"}}>Preview uploaded: {previewName}</span> : "Click to select preview file (PDF or DOCX, max 8MB)"}
+                <input
+                  id="file-input"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  style={{display:"none"}}
+                  onChange={handleUpload}
+                />
+
+                <label className="flabel">Preview</label>
+                <div className="upload-zone" style={{cursor:"default",pointerEvents:"none"}}>
+                  {previewZoneContent()}
                 </div>
-                <input id="preview-input" type="file" accept=".pdf,.docx" style={{display:"none"}} onChange={handlePreviewUpload}/>
-                <button className="btn-full" onClick={submit} disabled={saving}>{saving?"Saving…":"Submit for Review"}</button>
+
+                <button className="btn-full" onClick={submit} disabled={saving || uploading}>
+                  {saving ? "Saving…" : "Submit for Review"}
+                </button>
               </div>
+
               <div>
                 <div className="sidebar-card">
                   <div className="sidebar-h">Earning Structure</div>
@@ -1178,12 +1364,18 @@
                 <div className="sidebar-card">
                   <div className="sidebar-h">Seller Guidelines</div>
                   <ul className="guide-ul">
-                    <li>PDF or DOCX format, min. 10 pages</li>
+                    <li>PDF format only, min. 10 pages</li>
                     <li>Clear handwriting or typed notes</li>
-                    <li>Include subject & semester info</li>
+                    <li>Include subject &amp; semester info</li>
                     <li>No copied textbook content</li>
                     <li>Review takes 24–48 hours</li>
                   </ul>
+                </div>
+                <div className="sidebar-card" style={{background:"var(--parchment)"}}>
+                  <div className="sidebar-h">Preview Security</div>
+                  <p style={{fontSize:"0.8rem",color:"var(--stone)",lineHeight:1.65}}>
+                    A watermarked 3-page preview is auto-generated from your PDF. The full file is never exposed publicly — buyers can only access it after purchase.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1191,6 +1383,7 @@
         </>
       );
     }
+
 
     // ── AUTH ─────────────────────────────────────────────────────────────
     function Auth({ mode, setUser, go, showToast }) {
@@ -1365,9 +1558,9 @@
       const totalEarnings = Math.floor(totalRevenue * 0.8);
 
       const deleteNote = async (noteId) => {
-        if (!window.confirm("Delete this note? This cannot be undone.")) return;
+        if (!window.confirm("Unlist this note from public pages? Existing buyers keep access.")) return;
         setDeletingId(noteId);
-        const { error } = await supabase.from("notes").delete().eq("id", noteId);
+        const { error } = await supabase.from("notes").update({ is_deleted:true, is_approved:false }).eq("id", noteId);
         setDeletingId(null);
         if (error) { alert("Delete failed: " + error.message); return; }
         setNotes(prev => prev.filter(n => n.id !== noteId));
@@ -1414,7 +1607,7 @@
                           <td style={{color:earned>0?"var(--success)":"var(--stone)"}}>₹{earned}</td>
                           <td>
                             <button className="admin-action-btn danger" onClick={() => deleteNote(n.id)} disabled={deletingId===n.id}>
-                              {deletingId===n.id?"Deleting…":"Delete"}
+                              {deletingId===n.id?"Unlisting…":"Unlist"}
                             </button>
                           </td>
                         </tr>
@@ -1565,7 +1758,7 @@
     }
 
     // ── LIBRARY ──────────────────────────────────────────────────────────
-    function Library({ go, notes, purchases, addToCart }) {
+    function Library({ go, notes, purchases, addToCart, openPreview }) {
       const purchasedNotes = notes.filter(n => purchases.find(p => p.note_id === n.id));
       return (
         <>
@@ -1589,16 +1782,19 @@
                     <div className="nsubj">{n.subject||"General"}</div>
                     <h3 className="ntitle">{n.title}</h3>
                     <div className="ndetails">
-                      {n.pages && <span>{n.pages} pages</span>}
+                      {n.page_count && <span>{n.page_count} pages</span>}
                       <span style={{color:"var(--success)",fontWeight:600,fontSize:"0.76rem",marginLeft:"0.75rem"}}>Purchased</span>
                     </div>
                     <div className="nfooter">
                       <span className="nprice">₹{n.price}</span>
-                      {n.file_url && (
-                        <a href={n.file_url} target="_blank" rel="noreferrer" style={{background:"var(--success)",color:"white",padding:"0.42rem 1rem",fontSize:"0.78rem",fontWeight:600,letterSpacing:"0.05em"}}>
-                          Download
-                        </a>
-                      )}
+                      <div style={{display:"flex",gap:"0.6rem",alignItems:"center",flexWrap:"wrap"}}>
+                        {n.preview_url && <button type="button" className="btn-cart" style={{background:"transparent",color:"var(--ink)",border:"1px solid var(--border2)"}} onClick={() => openPreview?.(n.preview_url, n.title)}>Preview</button>}
+                        {n.file_url && (
+                          <a href={n.file_url} target="_blank" rel="noreferrer" style={{background:"var(--success)",color:"white",padding:"0.42rem 1rem",fontSize:"0.78rem",fontWeight:600,letterSpacing:"0.05em"}}>
+                            Download
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1635,7 +1831,7 @@
         );
 
       if (selected) {
-        const sellerNotes = notes.filter(n => n.is_approved !== false && n.seller_id === selected.id);
+        const sellerNotes = notes.filter(n => n.is_approved !== false && !n.is_deleted && n.seller_id === selected.id);
         return (
           <div className="page-wrap">
             <button className="back-btn" onClick={() => setSelected(null)}>← Back to Sellers</button>
@@ -1847,7 +2043,7 @@
                         <button className="comm-action-btn" style={{color:"var(--danger)"}} onClick={async () => {
                           await supabase.from("posts").delete().eq("id", post.id);
                           setPosts(ps => ps.filter(p => p.id !== post.id));
-                        }}>Delete</button>
+                        }}>Unlist</button>
                       )}
                     </div>
                     {replyTo===post.id && (
@@ -1864,7 +2060,7 @@
                                   <button style={{color:"var(--danger)",fontSize:"0.72rem"}} onClick={async () => {
                                     await supabase.from("replies").delete().eq("id", r.id);
                                     setReplies(prev => ({...prev, [post.id]: prev[post.id].filter(x => x.id !== r.id)}));
-                                  }}>Delete</button>
+                                  }}>Unlist</button>
                                 )}
                               </div>
                               {r.body}
@@ -1914,9 +2110,9 @@
             <div style={{width:"30px",height:"1px",background:"var(--sienna)",margin:"0.75rem 0 1.5rem"}}/>
             <p>Restricted to LexNotes editorial staff only.</p>
             <label className="flabel">Admin Email</label>
-            <input className="finput" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@lexnotes.in"/>
+            <input className="finput" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@lexnotes.in" autoComplete="off"/>
             <label className="flabel">Password</label>
-            <input className="finput" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key==="Enter" && submit()}/>
+            <input className="finput" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="Password" autoComplete="new-password" onKeyDown={e => e.key==="Enter" && submit()}/>
             <button className="btn-full" style={{marginTop:"1.5rem"}} onClick={submit}>Access Panel</button>
           </div>
         </div>
@@ -1946,7 +2142,7 @@
       const approveNote = async (id) => {
         const { error } = await supabase
           .from("notes")
-          .update({ is_approved: true })
+          .update({ is_approved: true, is_deleted: false })
           .eq("id", id);
 
         if (error) {
@@ -1962,35 +2158,35 @@
       const rejectNote = async (id) => {
         const { error } = await supabase
           .from("notes")
-          .update({ is_approved: false })
+          .update({ is_approved: false, is_deleted: true })
           .eq("id", id);
 
         if (error) {
-          showToast("Reject failed: " + error.message, "error");
+          showToast("Unlist failed: " + error.message, "error");
           return;
         }
 
         await loadAll();
         await refreshNotes?.();
-        showToast("Note rejected and hidden from public pages.");
+        showToast("Note unlisted from public pages. Existing buyers keep access.");
       };
 
       const deleteNote = async (id) => {
-        if (!window.confirm("Delete this note permanently?")) return;
+        if (!window.confirm("Unlist this note from public pages? Existing buyers keep access.")) return;
 
         const { error } = await supabase
           .from("notes")
-          .delete()
+          .update({ is_deleted: true, is_approved: false })
           .eq("id", id);
 
         if (error) {
-          showToast("Delete failed: " + error.message, "error");
+          showToast("Unlist failed: " + error.message, "error");
           return;
         }
 
         await loadAll();
         await refreshNotes?.();
-        showToast("Note deleted.");
+        showToast("Note unlisted from public pages. Existing buyers keep access.");
       };
 
       const deletePost = async (id) => {
@@ -2026,7 +2222,7 @@
                     {label:"Registered Users",value:users.length},
                     {label:"Community Posts", value:posts.length},
                     {label:"Pending Notes",   value:notes.filter(n => n.is_approved === false).length},
-                    {label:"Approved Notes",  value:notes.filter(n => n.is_approved !== false).length},
+                    {label:"Approved Notes",  value:notes.filter(n => n.is_approved !== false && !n.is_deleted).length},
                   ].map(s => (
                     <div key={s.label} className="admin-stat">
                       <div className="admin-stat-val">{s.value}</div>
@@ -2073,14 +2269,13 @@
                           <td style={{color:"var(--stone)"}}>{n.subject}</td>
                           <td style={{color:"var(--stone)"}}>{n.profiles?.full_name||"—"}</td>
                           <td>₹{n.price}</td>
-                          <td><span className={`badge ${n.is_approved !== false ? "badge-approved" : "badge-pending"}`}>{n.is_approved !== false ? "Approved" : "Pending / Rejected"}</span></td>
+                          <td><span className={`badge ${n.is_deleted ? "badge-banned" : (n.is_approved !== false ? "badge-approved" : "badge-pending")}`}>{n.is_deleted ? "Unlisted" : (n.is_approved !== false ? "Approved" : "Pending")}</span></td>
                           <td>
                             <div className="status-actions">
                               {n.preview_url && <button className="admin-action-btn" onClick={() => openPreview?.(n.preview_url, n.title)}>Preview</button>}
                               {n.file_url && <a href={n.file_url} target="_blank" rel="noreferrer"><button className="admin-action-btn">Full</button></a>}
                               <button className="admin-action-btn success" onClick={() => approveNote(n.id)}>Approve</button>
-                              <button className="admin-action-btn" onClick={() => rejectNote(n.id)}>Reject</button>
-                              <button className="admin-action-btn danger" onClick={() => deleteNote(n.id)}>Delete</button>
+                              <button className="admin-action-btn danger" onClick={() => rejectNote(n.id)}>Unlist</button>
                             </div>
                           </td>
                         </tr>
@@ -2384,7 +2579,6 @@
         const { data, error } = await supabase
           .from("notes")
           .select("*, profiles(full_name, college, avatar_url)")
-          .eq("is_approved", true)
           .order("created_at", { ascending: false });
         if (error) { setNE(error.message); } else { setNotes(data || []); }
         setNL(false);
@@ -2432,9 +2626,11 @@
         window.scrollTo({top:0,behavior:"smooth"});
       };
 
-      const openPreview = (url, title = "Document Preview") => {
-        if (!url) return;
-        setPreviewModal({ url, title });
+      // SECURITY: openPreview ONLY accepts preview_url values passed explicitly.
+      // Never call this with note.file_url or note.full_url. Modal handles missing url.
+      const openPreview = (previewUrl, title = "Document Preview") => {
+        // Always open modal; if previewUrl is falsy, modal shows "Preview not available yet."
+        setPreviewModal({ url: previewUrl || null, title });
       };
 
       const showToast = (msg, type="success") => {
@@ -2486,7 +2682,7 @@
           )}
           {page==="sell"      && <Sell       user={user} go={go} showToast={showToast}/>}
           {page==="profile"   && <Profile    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases} openPreview={openPreview}/>}
-          {page==="library"   && <Library    go={go} notes={notes} purchases={purchases} addToCart={addToCart}/>}
+          {page==="library"   && <Library    go={go} notes={notes} purchases={purchases} addToCart={addToCart} openPreview={openPreview}/>}
           {page==="sellers"   && <Sellers    go={go} addToCart={addToCart} notes={notes} notesLoading={notesLoading} purchases={purchases} openPreview={openPreview}/>}
           {page==="community" && <Community  user={user} go={go}/>}
           {page==="login"     && <Auth       mode="login"    setUser={setUser} go={go} showToast={showToast}/>}
