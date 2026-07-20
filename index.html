@@ -850,6 +850,11 @@
 
     // ── NOTE CARD ────────────────────────────────────────────────────────
     function NoteCard({ note, addToCart, purchases = [], openPreview }) {
+      const [expanded, setExpanded] = React.useState(false);
+  const purchased = purchases.includes(note.id);
+
+  return (
+    <div className="note-card">
       const purchased = purchases.find(p => p.note_id === note.id);
       const [expanded, setExpanded] = React.useState(false);
       return (
@@ -893,10 +898,10 @@
         WebkitBoxOrient:"vertical",
         WebkitLineClamp: expanded ? "unset" : 4
     }}
->
+  }
     {note.description}
 </div>
-
+)}
 {note.description.length > 180 && (
     <button
         type="button"
@@ -915,6 +920,8 @@
     </button>
 )}
 </div>
+)}
+
 {note.topics?.length > 0 && (
   <div style={{ marginBottom: "1rem" }}>
     <div style={{
@@ -974,7 +981,7 @@
           </div>
         </div>
       );
-    }
+      }
 
     // ── TOAST ────────────────────────────────────────────────────────────
     function Toast({ msg, type }) {
